@@ -1,0 +1,121 @@
+{
+  "_doc": "Manifest de claims diarios. reset_hour_local = 21:00. verified = check cerrado en el periodo actual.",
+  "reset_hour_local": 21,
+  "claims": {
+    "popups": {
+      "name": "Cerrar popups iniciales",
+      "in_main_loop": true,
+      "verified": false,
+      "cli": "python -m bot.cli daily popups",
+      "verified_at": "2026-05-31T04:58:18"
+    },
+    "shop": {
+      "name": "Shop (Gear Chest, Limited Offer, Top Up, Wish)",
+      "in_main_loop": true,
+      "verified": false,
+      "cli": "python -m bot.cli daily shop",
+      "notes": "Gear Chest puede no tener badge al terminar; Limited Offer y Top Up solo con exclamación"
+    },
+    "gold_cave": {
+      "name": "Events -> Dungeon -> Gold Cave (Quick Raid)",
+      "in_main_loop": false,
+      "verified": false,
+      "cli": "python -m bot.cli daily gold_cave",
+      "notes": "QR x1 -> empty(450,1440) -> QR x2 -> empty -> QR x2 -> empty -> close_x",
+      "verified_at": "2026-05-31T14:14:17"
+    },
+    "shackled_jungle": {
+      "name": "Events -> Dungeon -> Shackled Jungle (combate solo skills)",
+      "in_main_loop": false,
+      "verified": false,
+      "cli": "python -m bot.cli daily shackled_jungle",
+      "notes": "Start x2 free runs; sin movimiento; elige skills por puntaje"
+    },
+    "events": {
+      "name": "Events (Gold Cave + Arena + Peak Arena, 2 peleas c/u)",
+      "in_main_loop": true,
+      "verified": false,
+      "cli": "python -m bot.cli daily events"
+    },
+    "great_value": {
+      "name": "Great Value (solo con badge)",
+      "in_main_loop": true,
+      "verified": false,
+      "cli": "python -m bot.cli daily great_value"
+    },
+    "privilege": {
+      "name": "Privilege Card (solo con badge)",
+      "in_main_loop": true,
+      "verified": false,
+      "cli": "python -m bot.cli daily privilege"
+    },
+    "messages": {
+      "name": "Messages (solo con badge)",
+      "in_main_loop": true,
+      "verified": false,
+      "cli": "python -m bot.cli daily messages"
+    },
+    "guild": {
+      "name": "Guild (merchant bargain, hall legacy x5, expedition schedule)",
+      "in_main_loop": true,
+      "verified": false,
+      "cli": "python -m bot.cli daily guild",
+      "notes": "Legacy: 5 donaciones (Free,20,40,60,80 gemas juego); esperar loading; dismiss 450,250 entre cada una"
+    },
+    "hunt": {
+      "name": "Hunt (Claim + Quick Hunt free + x5)",
+      "in_main_loop": true,
+      "verified": false,
+      "cli": "python -m bot.cli daily hunt"
+    },
+    "sidebar_events": {
+      "name": "Sidebar: Island Treasure, Angler, Campaign Rout",
+      "in_main_loop": true,
+      "verified": false,
+      "cli": "python -m bot.cli daily sidebar_events"
+    },
+    "island_treasure": {
+      "name": "Island Treasure (pack free)",
+      "in_main_loop": false,
+      "verified": false,
+      "cli": "python -m bot.cli daily island"
+    },
+    "angler_bounty": {
+      "name": "Angler's Bounty",
+      "in_main_loop": false,
+      "verified": false,
+      "cli": "python -m bot.cli daily angler"
+    },
+    "campaign_rout": {
+      "name": "Campaign Rout",
+      "in_main_loop": false,
+      "verified": false,
+      "cli": "python -m bot.cli daily campaign_rout"
+    },
+    "task_center": {
+      "name": "Task Center (opcional, fuera del loop)",
+      "in_main_loop": false,
+      "verified": false,
+      "cli": "python -m bot.cli daily task_center"
+    },
+    "friends": {
+      "name": "Friends (opcional, NO en loop principal)",
+      "in_main_loop": false,
+      "verified": false,
+      "cli": "python -m bot.cli daily friends"
+    },
+    "camp": {
+      "name": "Camp AFK bubbles (opcional)",
+      "in_main_loop": false,
+      "verified": false,
+      "cli": "python -m bot.cli daily camp"
+    },
+    "trophy": {
+      "name": "Trophy / Collectibles (opcional)",
+      "in_main_loop": false,
+      "verified": false,
+      "cli": "python -m bot.cli daily trophy"
+    }
+  },
+  "period_start": "2026-05-31T21:00:00"
+}

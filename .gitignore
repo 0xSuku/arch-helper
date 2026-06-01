@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.env
+screenshots/
+logs/
+*.log
+STOP
+__pycache__/
+*.py[cod]
+*.pyo
+.python-version

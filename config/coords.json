@@ -1,0 +1,395 @@
+{
+
+  "_doc": "Coordenadas en espacio de captura retrato 900x1600 (x=horizontal, y=vertical desde arriba). Mismo sistema que screenshot y adb input tap. Puntos en 0,0 estan sin calibrar.",
+
+  "lobby": {
+
+    "guild": { "x": 581, "y": 1130, "label": "Guild (verificado)" },
+
+    "task_center": { "x": 816, "y": 367, "label": "Task Center (sidebar)" },
+
+    "friends": { "x": 816, "y": 478, "label": "Friends (sidebar)" },
+
+    "island_treasure": { "x": 816, "y": 590, "label": "Island Treasure (sidebar)" },
+
+    "angler_bounty": { "x": 816, "y": 715, "label": "Angler's Bounty (sidebar)" },
+
+    "campaign_rout": { "x": 816, "y": 844, "label": "Campaign Rout (sidebar)" },
+
+    "eternal_lode": { "x": 816, "y": 715, "label": "Alias Angler's Bounty" },
+
+    "contract_mystling": { "x": 816, "y": 844, "label": "Alias Campaign Rout" },
+
+    "privilege_card": { "x": 72, "y": 310, "label": "Privilege Card (sidebar izq)" },
+
+    "messages": { "x": 72, "y": 395, "label": "Messages / Mail (sidebar izq)" },
+
+    "great_value": { "x": 72, "y": 480, "label": "Great Value / Daily Rewards (sidebar izq)" },
+
+    "hunt": { "x": 320, "y": 1130, "label": "Hunt (centro lobby)" },
+
+    "camp": { "x": 109, "y": 1250, "label": "Camp (lobby)" },
+
+    "campaign_start": { "x": 448, "y": 1250, "label": "Boton Start campaña (verificado lobby)" },
+
+    "campaign_floor_badge": { "x": 72, "y": 562, "w": 86, "h": 74, "label": "Badge numero de piso en mapa campaña (ajustar si falla lectura)" },
+
+    "level_select_entry": { "x": 0, "y": 0, "label": "Entrada a seleccion de nivel/capitulo (calibrar)" }
+
+  },
+
+  "nav": {
+
+    "shop": { "x": 109, "y": 1523, "label": "Shop (nav inferior)" },
+
+    "equipment": { "x": 297, "y": 1523, "label": "Equipment (nav inferior)" },
+
+    "campaign": { "x": 450, "y": 1523, "label": "Campaign (nav inferior)" },
+
+    "trophy": { "x": 641, "y": 1523, "label": "Trophy / Collectibles (nav inferior)" },
+
+    "events": { "x": 797, "y": 1523, "label": "Events (nav inferior)" }
+
+  },
+
+  "menu": {
+
+    "back": { "x": 62, "y": 1531, "label": "Flecha atras en menu (tap, no swipe)" },
+
+    "close_x": { "x": 810, "y": 214, "label": "X cerrar popup (esquina sup der)" },
+
+    "close_empty_bottom": { "x": 450, "y": 850, "label": "Tap vacio popup central (task center). NO post-run: cae en runas" }
+
+  },
+
+  "task_center": {
+
+    "tab_sign_in": { "x": 180, "y": 1195, "label": "Tab Sign in" },
+
+    "tab_daily": { "x": 320, "y": 1195, "label": "Tab Daily" },
+
+    "tab_weekly": { "x": 520, "y": 1195, "label": "Tab Weekly" },
+
+    "tab_achievements": { "x": 680, "y": 1195, "label": "Tab Achievements" },
+
+    "claim_x": 780,
+
+    "claim": { "x": 780, "y": 415, "label": "Boton Claim (columna derecha)" },
+
+    "dismiss_reward": { "x": 450, "y": 850, "label": "Cerrar popup reward dentro del Task Center" },
+
+    "milestone_20": { "x": 280, "y": 265, "label": "Cofre milestone 20 pts" },
+
+    "milestone_40": { "x": 380, "y": 265, "label": "Cofre milestone 40 pts" },
+
+    "milestone_60": { "x": 480, "y": 265, "label": "Cofre milestone 60 pts" },
+
+    "milestone_80": { "x": 580, "y": 265, "label": "Cofre milestone 80 pts" },
+
+    "milestone_100": { "x": 680, "y": 265, "label": "Cofre milestone 100 pts" }
+
+  },
+
+  "friends": {
+
+    "claim_gift_all": { "x": 450, "y": 1410, "label": "Claim & Gift All" }
+
+  },
+
+  "messages": {
+
+    "claim_all": { "x": 450, "y": 1495, "label": "Claim All (pantalla mail/messages)" }
+
+  },
+
+  "privilege": {
+
+    "claim_all": { "x": 450, "y": 1495, "label": "Claim All (Privilege Card)" }
+
+  },
+
+  "great_value": {
+
+    "free_bonus": { "x": 780, "y": 380, "label": "Bonus Pack Free" }
+
+  },
+
+  "shop": {
+
+    "tab_gear_chest": { "x": 280, "y": 1355, "label": "Tab Gear Chest" },
+
+    "tab_wish": { "x": 430, "y": 1355, "label": "Tab Wish" },
+
+    "tab_limited_offer": { "x": 580, "y": 1355, "label": "Tab Limited Offer" },
+
+    "tab_top_up": { "x": 730, "y": 1355, "label": "Tab Top Up" },
+
+    "wish_free": { "x": 220, "y": 490, "label": "Daily Special Pack Free (Wish tab)" },
+
+    "limited_offer_free": { "x": 220, "y": 490, "label": "Daily Special Pack Free (Limited Offer tab)" },
+
+    "top_up_sub_gold": { "x": 450, "y": 1230, "label": "Sub-tab Gold (Top Up)" },
+
+    "top_up_free": { "x": 220, "y": 490, "label": "Pack free diario (Top Up -> Gold, calibrar si falla)" },
+
+    "gear_draw_x10": { "x": 280, "y": 850, "label": "Draw x10 Mythstone (usa llaves, no dinero real)" }
+
+  },
+
+  "events": {
+
+    "tab_arena": { "x": 180, "y": 1380, "label": "Sub-tab Arena (Events)" },
+
+    "tab_challenge": { "x": 450, "y": 1380, "label": "Sub-tab Challenge (Events)" },
+
+    "tab_dungeon": { "x": 680, "y": 1380, "label": "Sub-tab Dungeon (Events)" },
+
+    "gold_cave_banner": { "x": 450, "y": 280, "label": "Banner Gold Cave (Dungeon tab)" },
+
+    "gold_cave_quick_raid": { "x": 330, "y": 1170, "label": "Quick Raid (Gold Cave popup)" },
+
+    "gold_cave_dismiss_empty": { "x": 450, "y": 1552, "label": "Tap empty area to close rewards (Gold Cave)" },
+
+    "dismiss_rewards": { "x": 450, "y": 1552, "label": "Tap empty cerrar rewards (Events generico)" },
+
+    "shackled_jungle_banner": { "x": 450, "y": 900, "label": "Banner Shackled Jungle (Dungeon tab, 3er evento)" },
+
+    "shackled_jungle_entry_ad": { "x": 320, "y": 1100, "label": "Entrada ticket ad (izq, sin ver ad)" },
+
+    "shackled_jungle_entry_stones": { "x": 560, "y": 1100, "label": "Entrada 400 stones (der, alternativa)" },
+
+    "shackled_jungle_start": { "x": 450, "y": 1264, "label": "Start (run 1: 1 tap; run 2+: seleccionar ad + doble tap)" },
+
+    "shackled_jungle_dismiss_end": { "x": 450, "y": 1552, "label": "Tap empty Challenge has ended (calibrado)" },
+
+    "arena_banner": { "x": 450, "y": 280, "label": "Banner Arena (Arena tab)" },
+
+    "peak_arena_banner": { "x": 450, "y": 480, "label": "Banner Peak Arena (Arena tab)" },
+
+    "arena_challenge": { "x": 450, "y": 1460, "label": "Boton Challenge (Arena)" }
+
+  },
+
+  "island_treasure": {
+
+    "pack_tab": { "x": 805, "y": 1140, "label": "Pestaña Pack" },
+
+    "pack1_free": { "x": 688, "y": 667, "label": "Pack 1 Free" },
+
+    "pack2_free": { "x": 688, "y": 917, "label": "Pack 2 Free" }
+
+  },
+
+  "eternal_lode": {
+
+    "tasks": { "x": 812, "y": 226, "label": "Tasks" },
+
+    "guild_tasks_tab": { "x": 648, "y": 1372, "label": "Guild Tasks" },
+
+    "close_tasks": { "x": 810, "y": 214, "label": "X cerrar Tasks" }
+
+  },
+
+  "angler_bounty": {
+
+    "pack": { "x": 830, "y": 490, "label": "Pack (sidebar derecho)" },
+
+    "pack1_free": { "x": 750, "y": 400, "label": "Fishing Supplies 1 Free" },
+
+    "pack2_free": { "x": 750, "y": 555, "label": "Fishing Supplies 2 Free" },
+
+    "exchange": { "x": 830, "y": 650, "label": "Exchange Shop (sidebar)" },
+
+    "tasks": { "x": 830, "y": 810, "label": "Tasks (sidebar)" },
+
+    "tasks_claim_x": 750,
+
+    "tasks_claim_rows": [420, 580, 740, 900, 1060],
+
+    "close": { "x": 850, "y": 200, "label": "X cerrar popup Tasks/Pack" },
+
+    "back": { "x": 100, "y": 1530, "label": "Back desde evento Angler" }
+
+  },
+
+  "contract_mystling": {
+
+    "tasks": { "x": 802, "y": 602, "label": "Tasks" },
+
+    "tasks_claim": { "x": 734, "y": 411, "label": "Claim primera task" },
+
+    "pack": { "x": 802, "y": 281, "label": "Pack" },
+
+    "pack1_free": { "x": 703, "y": 747, "label": "Pack 1 Free" },
+
+    "pack2_free": { "x": 703, "y": 988, "label": "Pack 2 Free" },
+
+    "fund": { "x": 802, "y": 453, "label": "Contract Mystling Fund" },
+
+    "fund_claim_all": { "x": 227, "y": 1398, "label": "Claim All del track gratis" },
+
+    "shop": { "x": 800, "y": 140, "label": "Contract Mystling Shop" }
+
+  },
+
+  "campaign_rout": {
+
+    "tasks": { "x": 802, "y": 602, "label": "Tasks" },
+
+    "tasks_claim": { "x": 734, "y": 411, "label": "Claim task" },
+
+    "pack": { "x": 802, "y": 281, "label": "Pack" },
+
+    "pack1_free": { "x": 703, "y": 747, "label": "Pack 1 Free" },
+
+    "pack2_free": { "x": 703, "y": 988, "label": "Pack 2 Free" },
+
+    "fund": { "x": 802, "y": 453, "label": "Fund / track gratis" },
+
+    "fund_claim_all": { "x": 227, "y": 1398, "label": "Claim All track gratis" }
+
+  },
+
+  "guild": {
+
+    "merchant": { "x": 700, "y": 450, "label": "Guild Merchant (mapa guild)" },
+
+    "bargain": { "x": 448, "y": 937, "label": "Bargain (solo si badge; no Purchase)" },
+
+    "dismiss_empty": { "x": 450, "y": 1552, "label": "Tap empty cerrar rewards guild" },
+
+    "hall": { "x": 630, "y": 1248, "label": "Guild Hall (mapa -> lista miembros)" },
+
+    "expedition": { "x": 700, "y": 1000, "label": "Guild Expedition barco (mapa guild)" },
+
+    "expedition_schedule": { "x": 108, "y": 820, "label": "Schedule (Expedition, badge izq)" },
+
+    "research": { "x": 450, "y": 1380, "label": "Guild Research (desde hall)" },
+
+    "legacy": { "x": 450, "y": 1080, "label": "Guild Legacy (nodo arbol research)" },
+
+    "legacy_donate": { "x": 450, "y": 1216, "label": "Donate (Free / 20 / 40 / 60 / 80 gemas juego)" },
+
+    "legacy_dismiss": { "x": 450, "y": 250, "label": "Tap vacío arriba cerrar reward legacy" },
+
+    "claim_rows": [400, 500, 600, 700, 800]
+
+  },
+
+  "hunt": {
+
+    "claim": { "x": 680, "y": 1370, "label": "Claim Hunt Gains (verde, derecha)" },
+
+    "quick_hunt": { "x": 220, "y": 1370, "label": "Abrir Quick Hunt" },
+
+    "quick_free": { "x": 220, "y": 1200, "label": "Quick Hunt Free (popup)" },
+
+    "quick_x5": { "x": 680, "y": 1200, "label": "Quick Hunt x5 (popup, calibrar si falla)" },
+
+    "close_popup": { "x": 450, "y": 1500, "label": "Tap vacio cerrar Hunt Gains" }
+
+  },
+
+  "camp": {
+
+    "gift_center": { "x": 400, "y": 610, "label": "Gift bubble centro (monstruo)" },
+
+    "gift_left": { "x": 125, "y": 1370, "label": "Gift box inferior izq" },
+
+    "gift_edge": { "x": 30, "y": 820, "label": "Gift bubble borde izq" },
+
+    "back": { "x": 80, "y": 1550, "label": "Back desde Camp" }
+
+  },
+
+  "trophy": {
+
+    "codex": { "x": 450, "y": 1380, "label": "Codex tab (notificacion)" },
+
+    "wish": { "x": 780, "y": 1380, "label": "Wish button" }
+
+  },
+
+  "level_select": {
+
+    "level_50": { "x": 0, "y": 0, "label": "Nivel 50 (calibrar)" },
+
+    "start": { "x": 0, "y": 0, "label": "Boton Start de la partida (calibrar)" }
+
+  },
+
+  "battle": {
+
+    "pause": { "x": 40, "y": 130, "label": "Pause (combate)" },
+
+    "exit_battle": { "x": 250, "y": 1280, "label": "Exit Battle (menu pause)" },
+
+    "exit_confirm": { "x": 565, "y": 765, "label": "Confirm salir combate" },
+
+    "speed_toggle": { "x": 66, "y": 224, "label": "Toggle velocidad x1/x2/x3 arriba-izquierda" },
+
+    "devil_reject": { "x": 160, "y": 1275, "label": "Rechazar trato del diablo / pacto activo (Reject)" },
+
+    "devil_sign": { "x": 614, "y": 1277, "label": "Aceptar trato del diablo (Sign)" },
+
+    "active_reject": { "x": 160, "y": 1275, "label": "Rechazar activo / pacto (Shackled Jungle)" },
+
+    "dodge_up_from": { "x": 450, "y": 1150, "label": "Origen swipe esquive arriba" },
+
+    "dodge_up_to": { "x": 450, "y": 750, "label": "Destino swipe esquive arriba" },
+
+    "dodge_down_from": { "x": 450, "y": 750, "label": "Origen swipe esquive abajo" },
+
+    "dodge_down_to": { "x": 450, "y": 1150, "label": "Destino swipe esquive abajo" },
+
+    "grab_up_from": { "x": 450, "y": 1250, "label": "Origen swipe inicial para agarrar la ruleta (mover arriba)" },
+
+    "grab_up_to": { "x": 450, "y": 520, "label": "Destino swipe inicial hacia arriba" }
+
+  },
+
+  "roulette": {
+
+    "start": { "x": 450, "y": 1333, "label": "Botón Start de la ruleta" },
+
+    "skip": { "x": 450, "y": 1000, "label": "Tap en cualquier lado para skip/reclamar el giro" }
+
+  },
+
+  "run_end": {
+
+    "continue": { "x": 450, "y": 1552, "label": "Tap empty post-run (calibrado debajo del grid)" },
+
+    "continue_farm": { "x": 100, "y": 1555, "label": "Tap empty post-run farm energía (calibrado)" },
+
+    "tap_anywhere": { "x": 450, "y": 1552, "label": "Tap empty post-run (calibrado debajo del grid)" }
+
+  },
+
+  "skill_select": {
+
+    "cards": [
+
+      { "x": 74, "y": 648, "w": 170, "h": 150, "label": "Icono carta izquierda (verificado)" },
+
+      { "x": 366, "y": 648, "w": 170, "h": 150, "label": "Icono carta centro (verificado)" },
+
+      { "x": 658, "y": 648, "w": 170, "h": 150, "label": "Icono carta derecha (verificado)" }
+
+    ],
+
+    "card_taps": [
+
+      { "x": 159, "y": 723, "label": "Tap elegir carta izquierda" },
+
+      { "x": 451, "y": 723, "label": "Tap elegir carta centro" },
+
+      { "x": 743, "y": 723, "label": "Tap elegir carta derecha" }
+
+    ]
+
+  }
+
+}
+
+

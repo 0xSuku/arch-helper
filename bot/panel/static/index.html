@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Archero v2 Bot — Panel</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>Archero v2 Bot</h1>
+      <p class="subtitle">Panel de control local</p>
+    </div>
+    <div class="status-pills" id="status-pills">
+      <span class="pill" id="pill-screen">Pantalla …</span>
+      <span class="pill" id="pill-ld">Emulador …</span>
+      <span class="pill" id="pill-adb">ADB …</span>
+      <span class="pill" id="pill-job">Idle</span>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="card card-danger">
+      <h2>Parada de emergencia</h2>
+      <p>Crea el archivo <code>STOP</code> para cortar el bot antes de la siguiente acción.</p>
+      <div class="row">
+        <button class="btn btn-stop" id="btn-stop">STOP</button>
+        <button class="btn btn-ghost" id="btn-clear-stop">Quitar STOP</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Opciones daily</h2>
+      <label class="check"><input type="checkbox" id="opt-force" /> Force (ignorar checks verificados)</label>
+      <label class="check"><input type="checkbox" id="opt-recover" /> Recover emulador (guild legacy)</label>
+    </section>
+
+    <section class="card">
+      <h2>Farm &amp; Play</h2>
+      <div class="grid">
+        <button class="btn btn-primary" data-job="farm">Farm energía</button>
+        <button class="btn btn-accent" data-job="farm_forever">Farm infinito</button>
+        <div class="inline">
+          <input type="number" id="play-games" value="5" min="1" max="99" />
+          <button class="btn" data-job="play">Play N partidas</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Daily — loop</h2>
+      <div class="grid">
+        <button class="btn btn-primary" data-job="daily_main">Loop principal</button>
+      </div>
+      <p class="hint">popups → shop → events → … → guild → hunt → sidebar</p>
+    </section>
+
+    <section class="card card-wide">
+      <h2>Daily — claims individuales</h2>
+      <div class="claims-grid" id="claims-grid"></div>
+    </section>
+
+    <section class="card">
+      <h2>Emulador</h2>
+      <div class="grid">
+        <button class="btn" data-job="emulator_launch">Abrir emulador</button>
+        <button class="btn btn-primary" data-job="emulator_open_game">Abrir juego</button>
+        <button class="btn btn-primary" data-job="emulator_reconnect">Reconectar ADB</button>
+        <button class="btn btn-warn" data-job="emulator_reboot">Reiniciar emulador</button>
+      </div>
+    </section>
+
+    <section class="card card-wide">
+      <div class="log-head">
+        <h2>Skills — puntajes</h2>
+        <div class="row">
+          <button class="btn btn-ghost btn-sm" id="btn-skills-refresh">Actualizar</button>
+          <button class="btn btn-sm" data-job="skills_scan">Scan in-game</button>
+        </div>
+      </div>
+      <p class="hint">Editá nombre, categoría, grupo y score. Guardar renombra templates o etiqueta entradas del catálogo.</p>
+      <div class="skills-table-wrap">
+        <table class="skills-table" id="skills-table">
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Categoría</th>
+              <th>Grupo</th>
+              <th>Score</th>
+              <th>Origen</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="skills-body">
+            <tr><td colspan="6" class="muted-cell">Cargando…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Herramientas</h2>
+      <div class="grid">
+        <button class="btn" data-job="calibrate_shot">Captura pantalla</button>
+        <button class="btn" data-job="calibrate_identify">Identificar pantalla</button>
+        <button class="btn" data-job="calibrate_read_floor">Leer piso mapa</button>
+      </div>
+    </section>
+
+    <section class="card card-wide">
+      <h2>Checks diarios</h2>
+      <pre class="mono small" id="daily-status">Cargando…</pre>
+    </section>
+
+    <section class="card card-wide">
+      <div class="log-head">
+        <h2>Log</h2>
+        <button class="btn btn-ghost btn-sm" id="btn-refresh-log">Actualizar</button>
+      </div>
+      <pre class="log mono" id="log-view"></pre>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" hidden></div>
+  <script src="/static/app.js"></script>
+</body>
+</html>
