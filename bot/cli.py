@@ -82,6 +82,7 @@ def cmd_daily(args: argparse.Namespace) -> None:
         ctx,
         force=args.force or explicit,
         recover_emulator=args.recover_emulator,
+        arena_fights=getattr(args, "arena_fights", None),
     )
     if args.mark:
         path.mark_verified(args.mark)
@@ -148,6 +149,12 @@ def cmd_calibrate(args: argparse.Namespace) -> None:
             region = vision.DEFAULT_CAMPAIGN_FLOOR_BADGE
         floor = vision.read_campaign_floor_badge(device.screenshot(), region)
         print(f"Piso leído: {floor if floor is not None else '(no legible)'}")
+    if getattr(args, "read_arena_power", False):
+        screen = device.screenshot()
+        power = vision.read_arena_opponent_power(screen, 2)
+        rows = vision.find_arena_power_row_ys(screen)
+        print(f"Filas detectadas Y={rows}")
+        print(f"Poder rival #3: {power if power is not None else '(no legible)'}M")
 
 
 def cmd_skills(args: argparse.Namespace) -> None:
@@ -283,6 +290,13 @@ def build_parser() -> argparse.ArgumentParser:
         dest="recover_emulator",
         help="Si el emulador se cuelga (loading infinito), lo reinicia y reintenta una vez",
     )
+    p_daily.add_argument(
+        "--arena-fights",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Peleas Arena por run (default 2). Solo aplica a claim arena/events.",
+    )
     p_daily.set_defaults(func=cmd_daily)
 
     p_emu = sub.add_parser("emulator", help="Control del emulador (MuMu / LDPlayer)")
@@ -342,6 +356,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_cal.add_argument("--crop", metavar="X,Y,W,H", help="Recorta una región de la captura")
     p_cal.add_argument("--out", metavar="RUTA.png", help="Destino del recorte de --crop")
     p_cal.add_argument("--read-floor", action="store_true", help="Lee el piso actual del badge del mapa campaña")
+    p_cal.add_argument("--read-arena-power", action="store_true", help="Lee poder del rival #3 en popup Arena")
     p_cal.set_defaults(func=cmd_calibrate)
 
     p_sk = sub.add_parser("skills", help="Puntajes por skill para elección in-game")

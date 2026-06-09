@@ -1,69 +1,6 @@
-# Archero v2 Bot (MuMu Player 12)
-
-Bot no-IA para **Archero 2** sobre **MuMu Player 12** + ADB (LDPlayer 9 sigue soportado). Automatiza
-los claims diarios y puede jugar partidas (esquivar + elegir skills por prioridad)
-mediante visión por computadora (template matching), una máquina de estados por
-"paths" y failsafes de seguridad.
-
-## Requisitos
-
-- Windows con MuMu Player 12 (`D:\Program Files\Netease\MuMuPlayer\nx_main`)
-- Python 3.12+ con `opencv-python` y `numpy` (`pip install -r requirements.txt`)
-- Archero 2 instalado en el emulador (`com.xq.archeroii`)
-- Resolución del emulador en retrato; las capturas son 900x1600
-- ADB habilitado en MuMu (Settings → ADB; puerto típico `16384` para la instancia 0)
-
-## Instalación
-
-```bash
-pip install -r requirements.txt
-# Ajustá .env si tu ruta de MuMu o puerto ADB difieren
-```
-
-`.env` (ejemplo):
-
-```
-EMULATOR=mumu
-EMULATOR_DIR=D:\Program Files\Netease\MuMuPlayer\nx_main
-EMULATOR_INDEX=0
-ADB_HOST=127.0.0.1
-ADB_PORT=16384
-```
-
-Para volver a LDPlayer: `EMULATOR=ldplayer`, `EMULATOR_DIR=D:\LDPlayer\LDPlayer9`, `ADB_PORT=5555`.
-
-## Uso
-
-### Panel web (recomendado)
-
-Interfaz visual con botones para farm, daily, emulador y herramientas:
-
-```bash
-python -m bot.cli panel
-# abre http://127.0.0.1:8765
-python -m bot.cli panel --port 9000
-```
-
-Incluye: farm / farm infinito, loop daily, claims individuales (guild, shop, …),
-abrir el emulador y el juego, reiniciar emulador, capturas, **editor de puntajes
-de skills**, log en vivo y botón **STOP**.
-
-Hay dos bots principales, pensados para correrse por separado (CLI o panel):
-
-```bash
-# BOT 1 — Energía: juega el nivel 50 hasta agotar toda la energía
-python -m bot.cli farm
-python -m bot.cli farm --level 50 --max-games 40 --battle-timeout 480
-
-# BOT 1 (infinito): juega, al quedarse sin energía espera y reanuda solo
-python -m bot.cli farm --forever            # espera 60 min por defecto
-python -m bot.cli farm --forever --energy-wait 60
-
-# BOT 2 — Diario: claims individuales o todos
-python -m bot.cli daily --list
-python -m bot.cli daily                    # todos
-python -m bot.cli daily guild              # solo guild
+python -m bot.cli daily guild             # solo guild
 python -m bot.cli daily shackled_jungle    # Events -> Dungeon -> Shackled Jungle
+python -m bot.cli daily abyssal_tide       # Events -> Dungeon -> Abyssal Tide (AFK)
 python -m bot.cli daily guild friends shop # varios en secuencia
 ```
 
@@ -101,6 +38,29 @@ python -m bot.cli daily shackled_jungle --force
 elige la carta con mayor score según `config/skills.json`.
 
 Coords en `events.shackled_jungle_*` en [config/coords.json](config/coords.json).
+
+### Abyssal Tide (Dungeon)
+
+Combates en Events → Dungeon → Abyssal Tide. Modo **AFK**: espera en combate (~1.5–4 min),
+elige skill si aparece level-up, y vuelve al lobby de campaña.
+
+```bash
+python -m bot.cli daily abyssal_tide --force
+```
+
+**Flujo (2 free/día + ad si hay ticket video):**
+
+| Paso | Acción | Coord |
+|------|--------|-------|
+| 1 | Events (nav inferior der) | `(797, 1523)` |
+| 2 | Tab Dungeon | `(680, 1380)` |
+| 3 | Banner Abyssal Tide | `(450, 1050)` |
+| 4 | Run 1–2: Start (ticket free) | `(450, 1290)` |
+| 5 | Run ad (si visible): ticket ad + doble Start | `(320, 1100)` + `(450, 1290)` ×2 |
+| 6 | Fin de run: tap empty | `(450, 1552)` |
+| 7 | Salir: back popup → Campaign | `menu.back` → `nav.campaign` |
+
+Coords en `events.abyssal_tide_*` en [config/coords.json](config/coords.json).
 
 ### Selección del nivel 50 (a prueba de errores)
 

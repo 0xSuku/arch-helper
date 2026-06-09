@@ -235,6 +235,251 @@ def _match_digit(patch: np.ndarray, templates: dict[str, np.ndarray]) -> tuple[s
     return best_digit, best_conf
 
 
+def _trim_glyph(tpl: np.ndarray) -> np.ndarray:
+    ys, xs = np.where(tpl > 0)
+    if ys.size == 0 or xs.size == 0:
+        return tpl
+    y0, y1 = int(ys.min()), int(ys.max()) + 1
+    x0, x1 = int(xs.min()), int(xs.max()) + 1
+    return tpl[y0:y1, x0:x1]
+
+
+def _arena_glyph_templates() -> dict[str, np.ndarray]:
+    templates = _load_digit_templates()
+    trimmed: dict[str, np.ndarray] = {}
+    for k, v in templates.items():
+        if k in "0123456789" or k in ("dot", "M"):
+            trimmed[k] = _trim_glyph(v)
+    return trimmed
+
+
+ARENA_POWER_SLOTS: tuple[tuple[int, int, str], ...] = (
+    (1, 16, "digit"),
+    (28, 15, "digit"),
+    (43, 12, "digit"),
+    (55, 20, "M"),
+)
+
+
+def _match_arena_slot(
+    bw: np.ndarray,
+    x0: int,
+    width: int,
+    kind: str,
+    templates: dict[str, np.ndarray],
+) -> tuple[str, float]:
+    h = bw.shape[0]
+    x1 = min(bw.shape[1], x0 + width)
+    if x0 >= x1:
+        return "", 0.0
+    sub = bw[:h, x0:x1]
+    if sub.size == 0:
+        return "", 0.0
+
+    if kind == "dot":
+        tpl = templates.get("dot")
+        if tpl is None:
+            return "", 0.0
+        th, tw = tpl.shape[:2]
+        resized = cv2.resize(sub, (tw, th), interpolation=cv2.INTER_AREA)
+        res = cv2.matchTemplate(resized, tpl, cv2.TM_CCOEFF_NORMED)
+        conf = float(res[0, 0]) if res.size else 0.0
+        return (".", conf) if conf >= 0.35 else ("", conf)
+
+    if kind == "M":
+        tpl = templates.get("M")
+        if tpl is None:
+            return "", 0.0
+        th, tw = tpl.shape[:2]
+        resized = cv2.resize(sub, (tw, th), interpolation=cv2.INTER_AREA)
+        res = cv2.matchTemplate(resized, tpl, cv2.TM_CCOEFF_NORMED)
+        conf = float(res[0, 0]) if res.size else 0.0
+        return ("M", conf) if conf >= 0.35 else ("", conf)
+
+    best_ch, best_conf = "", 0.0
+    for ch, tpl in templates.items():
+        if ch in ("dot", "M"):
+            continue
+        if int(tpl.sum()) < 40:
+            continue
+        th, tw = tpl.shape[:2]
+        resized = cv2.resize(sub, (tw, th), interpolation=cv2.INTER_AREA)
+        res = cv2.matchTemplate(resized, tpl, cv2.TM_CCOEFF_NORMED)
+        conf = float(res[0, 0]) if res.size else 0.0
+        if conf > best_conf:
+            best_ch, best_conf = ch, conf
+    return (best_ch, best_conf) if best_conf >= 0.38 else ("", best_conf)
+
+
+ARENA_POWER_ROW_SCAN = (190, 520, 90, 680)
+ARENA_POWER_ROW_MIN_DARK = 380
+ARENA_POWER_ROW_MIN_GAP = 120
+
+
+def _cluster_arena_row_ys(candidates: list[int]) -> list[int]:
+    if not candidates:
+        return []
+    clusters: list[list[int]] = [[candidates[0]]]
+    for y in candidates[1:]:
+        if y - clusters[-1][-1] <= 18:
+            clusters[-1].append(y)
+        else:
+            clusters.append([y])
+    merged = [int(sum(c) / len(c)) for c in clusters if len(c) >= 2]
+    if len(merged) >= 2:
+        return merged
+    return [int(sum(c) / len(c)) for c in clusters]
+
+
+ARENA_POPUP_TITLE_REGION: Region = (300, 300, 260, 80)
+ARENA_ROW_OFFSETS: tuple[int, ...] = (225, 341, 533, 625, 733)
+
+
+def arena_popup_title_y(screen: np.ndarray) -> int | None:
+    try:
+        match = find_template(
+            screen,
+            "anchors/arena_opponents_popup.png",
+            region=ARENA_POPUP_TITLE_REGION,
+        )
+    except FileNotFoundError:
+        return None
+    if match.confidence < 0.72:
+        return None
+    return match.cy
+
+
+def find_arena_power_row_ys(screen: np.ndarray) -> list[int]:
+    title_y = arena_popup_title_y(screen)
+    if title_y is not None:
+        return [title_y + off for off in ARENA_ROW_OFFSETS]
+    return _find_arena_power_row_ys_scan(screen)
+
+
+def _find_arena_power_row_ys_scan(screen: np.ndarray) -> list[int]:
+    x, y0, w, h = ARENA_POWER_ROW_SCAN
+    hay = crop(screen, (x, y0, w, h))
+    gray = cv2.cvtColor(hay, cv2.COLOR_BGR2GRAY)
+    candidates: list[int] = []
+    for row in range(0, gray.shape[0] - 22, 3):
+        patch = gray[row : row + 22, :]
+        if int((patch < 90).sum()) >= ARENA_POWER_ROW_MIN_DARK:
+            candidates.append(y0 + row + 11)
+    rows = _cluster_arena_row_ys(candidates)
+    if len(rows) < 2:
+        return rows
+    gaps = [rows[i + 1] - rows[i] for i in range(len(rows) - 1)]
+    median_gap = sorted(gaps)[len(gaps) // 2]
+    if median_gap < ARENA_POWER_ROW_MIN_GAP:
+        return rows
+    filtered = [rows[0]]
+    for y in rows[1:]:
+        if y - filtered[-1] >= median_gap * 0.65:
+            filtered.append(y)
+    return filtered
+
+
+def read_arena_opponent_power(
+    screen: np.ndarray,
+    row_index: int,
+    *,
+    region_width: int = 85,
+    region_height: int = 28,
+) -> float | None:
+    rows = find_arena_power_row_ys(screen)
+    if len(rows) <= row_index:
+        return None
+    y = rows[row_index] - region_height // 2
+    region = (ARENA_POWER_ROW_SCAN[0], y, region_width, region_height)
+    return _read_arena_power_first_digit(screen, region)
+
+
+ARENA_FIRST_DIGIT_DIR = TEMPLATES / "arena"
+ARENA_FIRST_DIGIT_X = 191
+ARENA_FIRST_DIGIT_W = 17
+ARENA_FIRST_DIGIT_H = 28
+
+
+def _load_arena_first_digit_templates() -> dict[int, np.ndarray]:
+    templates: dict[int, np.ndarray] = {}
+    if not ARENA_FIRST_DIGIT_DIR.exists():
+        return templates
+    for path in sorted(ARENA_FIRST_DIGIT_DIR.glob("first_*.png")):
+        digit = path.stem.replace("first_", "")
+        if not digit.isdigit():
+            continue
+        img = cv2.imread(str(path), cv2.IMREAD_GRAYSCALE)
+        if img is not None:
+            templates[int(digit)] = img
+    return templates
+
+
+def _read_arena_power_first_digit(screen: np.ndarray, region: Region) -> float | None:
+    x, y, _w, h = region
+    patch = crop(
+        screen,
+        (ARENA_FIRST_DIGIT_X, y + (h - ARENA_FIRST_DIGIT_H) // 2, ARENA_FIRST_DIGIT_W, ARENA_FIRST_DIGIT_H),
+    )
+    gray = cv2.cvtColor(patch, cv2.COLOR_BGR2GRAY)
+    if int((gray < 90).sum()) < 25:
+        return None
+    templates = _load_arena_first_digit_templates()
+    if not templates:
+        return None
+    best_digit, best_conf = -1, 0.0
+    runner_conf = 0.0
+    for digit, tpl in templates.items():
+        th, tw = tpl.shape[:2]
+        resized = cv2.resize(gray, (tw, th), interpolation=cv2.INTER_AREA)
+        res = cv2.matchTemplate(resized, tpl, cv2.TM_CCOEFF_NORMED)
+        conf = float(res[0, 0]) if res.size else 0.0
+        if conf > best_conf:
+            runner_conf = best_conf
+            best_conf, best_digit = conf, digit
+        elif conf > runner_conf:
+            runner_conf = conf
+    if best_digit < 0 or best_conf < 0.55 or (best_conf - runner_conf) < 0.08:
+        return None
+    return float(best_digit)
+
+
+def read_arena_power_millions(
+    screen: np.ndarray,
+    region: Region,
+    *,
+    min_digit_conf: float = 0.38,
+) -> float | None:
+    """Lee poder en millones (ej. 4.85M -> 4.85) desde región OCR de Arena."""
+    _ = min_digit_conf
+    patch = crop(screen, region)
+    gray = cv2.cvtColor(patch, cv2.COLOR_BGR2GRAY)
+    _, bw = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY_INV)
+    templates = _arena_glyph_templates()
+    if not templates:
+        return None
+
+    digits: list[str] = []
+    for x0, width, kind in ARENA_POWER_SLOTS:
+        ch, _conf = _match_arena_slot(bw, x0, width, kind, templates)
+        if not ch:
+            if kind == "M":
+                break
+            return None
+        if kind == "digit":
+            digits.append(ch)
+        elif ch == "M":
+            break
+
+    if len(digits) < 3:
+        return None
+    num_part = f"{digits[0]}.{digits[1]}{digits[2]}"
+    try:
+        value = float(num_part)
+    except ValueError:
+        return None
+    return value if 0.01 <= value <= 99.99 else None
+
+
 def read_campaign_floor_badge(
     screen: np.ndarray,
     region: Region = DEFAULT_CAMPAIGN_FLOOR_BADGE,

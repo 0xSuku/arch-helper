@@ -1,6 +1,8 @@
 """Navegación consciente de pantalla: volver al lobby de campaña antes de tareas."""
 from __future__ import annotations
 
+import time
+
 from .device import sleep
 from .log import get_logger
 from .paths.base import BotContext
@@ -98,6 +100,88 @@ def ensure_campaign_lobby(ctx: BotContext, *, exit_combat: bool = False) -> bool
     return ok
 
 
+def ensure_game_lobby(
+    ctx: BotContext,
+    *,
+    exit_combat: bool = True,
+    launch_game: bool = True,
+    launch_wait_s: float = 8.0,
+    game_visible_timeout: float = 60.0,
+    max_launch_attempts: int = 2,
+    allow_combat: bool = False,
+) -> bool:
+    """Garantiza juego abierto y lobby visible antes de iniciar un bot."""
+    from .emulator import EmulatorConsole
+
+    def current_ready() -> bool:
+        try:
+            screen = ctx.device.screenshot()
+        except RuntimeError:
+            return False
+        if is_lobby(screen):
+            return True
+        sid = ctx.current_screen()
+        if allow_combat and is_combat_active(sid):
+            log.info("Run activa detectada (%s); listo para reanudar", sid.value)
+            return True
+        return False
+
+    def launch_and_wait(reason: str) -> bool:
+        log.warning("%s; abro el juego", reason)
+        EmulatorConsole().run_app()
+        sleep(launch_wait_s)
+        deadline = time.time() + game_visible_timeout
+        while time.time() < deadline:
+            ctx.kill.check()
+            try:
+                screen = ctx.device.screenshot()
+            except RuntimeError:
+                sleep(2.0)
+                continue
+            if is_lobby(screen):
+                return True
+            sid = ctx.current_screen()
+            if allow_combat and is_combat_active(sid):
+                log.info("Juego abrió en run activa (%s); reanudo", sid.value)
+                return True
+            if sid != ScreenId.UNKNOWN:
+                break
+            sleep(2.0)
+        return False
+
+    nav_exit_combat = exit_combat and not allow_combat
+
+    if current_ready():
+        return True
+
+    if launch_game:
+        try:
+            screen = ctx.device.screenshot()
+            if is_lobby(screen):
+                return True
+            if ctx.current_screen() == ScreenId.UNKNOWN and launch_and_wait("Pantalla inicial unknown"):
+                return True
+        except RuntimeError:
+            if launch_and_wait("No pude capturar pantalla inicial"):
+                return True
+
+    if ensure_campaign_lobby(ctx, exit_combat=nav_exit_combat):
+        return True
+    if current_ready():
+        return True
+    if not launch_game:
+        return False
+
+    for attempt in range(max(1, max_launch_attempts)):
+        if launch_and_wait(f"No se confirmó lobby (intento {attempt + 1}/{max_launch_attempts})"):
+            return True
+        if ensure_campaign_lobby(ctx, exit_combat=nav_exit_combat):
+            return True
+        if current_ready():
+            return True
+    return False
+
+
 def prepare_for_task(ctx: BotContext, task: str) -> None:
     """Prepara el emulador antes de una tarea del panel/CLI."""
     sid = log_screen(ctx, f"Tarea {task}")
@@ -124,10 +208,10 @@ def prepare_for_task(ctx: BotContext, task: str) -> None:
                 if not dismiss_to_lobby(ctx):
                     raise NavigationError("No se pudo cerrar pantalla post-run antes del farm")
                 return
-            log.info("Farm/play: ya en combate, no navego")
+            log.info("Farm/play: ya en combate (%s); reanudo run activa", sid.value)
             return
-        if not ensure_campaign_lobby(ctx, exit_combat=True):
-            raise NavigationError("No se pudo llegar al lobby para iniciar farm/play")
+        if not ensure_game_lobby(ctx, exit_combat=True, allow_combat=True):
+            raise NavigationError("No se pudo abrir el juego y llegar al lobby/run activa para iniciar farm/play")
         return
 
     if task == "skills_scan":
@@ -135,7 +219,7 @@ def prepare_for_task(ctx: BotContext, task: str) -> None:
             return
         if is_combat_active(sid):
             raise NavigationError("En combate; poné skill select o esperá al fin del run")
-        if not ensure_campaign_lobby(ctx, exit_combat=True):
+        if not ensure_game_lobby(ctx, exit_combat=True):
             raise NavigationError("Abrí el juego en skill select o lobby de campaña")
         raise NavigationError("No estás en skill select; entrá a un level-up primero")
 
@@ -144,8 +228,8 @@ def prepare_for_task(ctx: BotContext, task: str) -> None:
             f"En combate ({sid.value}); no inicio '{task}'. Usá STOP o esperá a que termine el run."
         )
 
-    if not ensure_campaign_lobby(ctx, exit_combat=True):
-        raise NavigationError(f"No se pudo volver al lobby de campaña para '{task}'")
+    if not ensure_game_lobby(ctx, exit_combat=True):
+        raise NavigationError(f"No se pudo abrir el juego y llegar al lobby para '{task}'")
 
 
 def _exit_combat(ctx: BotContext) -> None:

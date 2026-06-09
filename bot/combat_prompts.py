@@ -12,6 +12,21 @@ def is_shackled_challenge_end(screen) -> bool:
     return is_challenge_ended_screen(screen)
 
 
+def event_challenge_end(screen) -> bool:
+    """Challenge has ended real: no skill select / ruleta / pacto encima."""
+    from .run_end_dismiss import is_challenge_ended_screen
+    from .screens import ScreenId, identify_combat
+
+    if not is_challenge_ended_screen(screen):
+        return False
+    sid = identify_combat(screen)
+    return sid not in (
+        ScreenId.SKILL_SELECT,
+        ScreenId.ROULETTE,
+        ScreenId.DEVIL_DEAL,
+    )
+
+
 def dismiss_shackled_challenge_end(ctx) -> None:
     try:
         ctx.tap_point("events", "shackled_jungle_dismiss_end", money_check=False, settle=0.5)

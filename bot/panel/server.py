@@ -102,12 +102,9 @@ class PanelHandler(BaseHTTPRequestHandler):
             )
 
         if path == "/api/claims":
-            main = set(MAIN_LOOP_ORDER)
-            claims = [
-                {"id": name, "main_loop": name in main}
-                for name in MAIN_LOOP_ORDER + EXTRA_CLAIMS
-            ]
-            return self._json(200, {"claims": claims, "main_loop": list(MAIN_LOOP_ORDER)})
+            from ..task_tiers import grouped_panel_items
+
+            return self._json(200, grouped_panel_items())
 
         if path == "/api/daily-status":
             lines = DailyChecks(force=False).status_lines()

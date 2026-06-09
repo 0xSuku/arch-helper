@@ -6,10 +6,17 @@ recoger recompensas -> volver al lobby -> repetir.
 """
 from __future__ import annotations
 
+import math
+import os
 import time
+from pathlib import Path
+from types import TracebackType
+
+import cv2
+import numpy as np
 
 from .. import screens, vision
-from ..device import sleep
+from ..device import ROOT, sleep
 from ..failsafes import (
     BattleTimeout,
     PathAborted,
@@ -26,6 +33,11 @@ log = get_logger("play")
 
 LEVEL50_TEMPLATE = "anchors/level50.png"
 LEVEL_TITLE_THRESHOLD = 0.80
+PLAY_RUN_LOCK = ROOT / "logs" / "play_level.lock"
+FIELD_ROULETTE_REGION = (420, 380, 320, 380)
+FIELD_PLAYER_ANCHOR = (450, 820)
+JOYSTICK_RADIUS = 330
+ROULETTE_GRAB_MAX_ATTEMPTS = 3
 
 _IN_COMBAT_SCREENS = frozenset(
     {
@@ -35,6 +47,56 @@ _IN_COMBAT_SCREENS = frozenset(
         ScreenId.DEVIL_DEAL,
     }
 )
+
+
+class PlayRunLock:
+    def __init__(self, path: Path = PLAY_RUN_LOCK) -> None:
+        self.path = path
+        self._fh = None
+
+    def __enter__(self) -> None:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._fh = self.path.open("a+", encoding="utf-8")
+        try:
+            if os.name == "nt":
+                import msvcrt
+
+                self._fh.seek(0)
+                msvcrt.locking(self._fh.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                import fcntl
+
+                fcntl.flock(self._fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError as exc:
+            self._fh.close()
+            self._fh = None
+            raise PathAborted("Ya hay un farm/play corriendo; no inicio otro") from exc
+        self._fh.seek(0)
+        self._fh.truncate()
+        self._fh.write(f"pid={os.getpid()} started={time.time():.0f}\n")
+        self._fh.flush()
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        if self._fh is None:
+            return
+        try:
+            if os.name == "nt":
+                import msvcrt
+
+                self._fh.seek(0)
+                msvcrt.locking(self._fh.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                import fcntl
+
+                fcntl.flock(self._fh.fileno(), fcntl.LOCK_UN)
+        finally:
+            self._fh.close()
+            self._fh = None
 
 
 class PlayLevelPath:
@@ -50,11 +112,13 @@ class PlayLevelPath:
         energy_wait_s: float = 3600.0,
         dodge: bool = False,
         skills_only: bool = False,
+        afk_only: bool = False,
     ) -> None:
         self.ctx = ctx
         self.level = level
         self.dodge = dodge
         self.skills_only = skills_only
+        self.afk_only = afk_only
         # games=None -> jugar hasta agotar energía (modo farmeo).
         self.games = games
         self.until_no_energy = games is None
@@ -71,6 +135,10 @@ class PlayLevelPath:
             configure_farm_ctx(ctx)
 
     def run(self) -> int:
+        with PlayRunLock():
+            return self._run_locked()
+
+    def _run_locked(self) -> int:
         won = 0
         played = 0
         n = 0
@@ -116,6 +184,8 @@ class PlayLevelPath:
                     log.info("Reconecto a una partida en curso (%s)", sid.value)
                 else:
                     if not self._enter_level():
+                        if self._resume_active_run_after_start_failure():
+                            continue
                         self._abort_start()
                         if self.forever:
                             log.info(
@@ -170,6 +240,7 @@ class PlayLevelPath:
         if self.ctx.current_screen() != ScreenId.LOBBY:
             if not self.ctx.return_to_lobby():
                 log.warning("No se confirmó lobby antes de entrar al nivel")
+                return False
 
         if not self._ensure_level_50():
             log.warning("No se pudo confirmar el nivel 50; no presiono Start.")
@@ -189,6 +260,9 @@ class PlayLevelPath:
 
     def _ensure_level_50(self) -> bool:
         """Verifica que el nivel 50 esté centrado. Si no, navega según el piso actual."""
+        if self.ctx.current_screen() != ScreenId.LOBBY:
+            log.warning("No busco nivel %d: pantalla actual no es lobby/campaña", self.level)
+            return False
         if self._level_50_visible():
             return True
         log.info("Nivel 50 no visible; navegando el mapa de campaña...")
@@ -309,7 +383,7 @@ class PlayLevelPath:
             ):
                 log.info("Combate iniciado (%s)", sid.value)
                 return True
-            sleep(0.35)
+            sleep(0.25)
         log.info("No se detectó inicio de combate en %.0fs", self.start_timeout)
         return False
 
@@ -319,16 +393,39 @@ class PlayLevelPath:
         self.ctx.back(settle=1.0)
         self.ctx.return_to_lobby()
 
+    def _resume_active_run_after_start_failure(self) -> bool:
+        from ..run_end_dismiss import is_post_run_overlay
+
+        screen = self.ctx.device.screenshot()
+        sid = screens.identify_combat(screen)
+        if sid in _IN_COMBAT_SCREENS and not is_post_run_overlay(screen):
+            log.warning(
+                "No se pudo preparar lobby, pero hay run activo (%s); reanudo combate.",
+                sid.value,
+            )
+            result = self._fight()
+            log.info("Resultado (reanudado): %s", result)
+            self._collect_run_end()
+            return True
+        if is_post_run_overlay(screen):
+            log.warning("No se pudo preparar lobby, pero hay post-run; recojo y sigo.")
+            self._collect_run_end()
+            return True
+        return False
+
     def _fight(self) -> str:
+        if self.afk_only:
+            return self._fight_afk_only()
         if self.skills_only:
             return self._fight_skills_only()
         return self._fight_standard()
 
-    def _fight_skills_only(self) -> str:
-        """Shackled Jungle: solo elegir skills, idle entre level-ups."""
-        from ..combat_prompts import find_reject_button, is_shackled_challenge_end
+    def _fight_afk_only(self) -> str:
+        """Dungeon AFK (Abyssal Tide): espera en combate; elige skill si aparece level-up."""
+        from ..combat_prompts import event_challenge_end, find_reject_button
 
         timeout = BattleTimeout(self.battle_timeout)
+        end_streak = 0
 
         while True:
             self.ctx.kill.check()
@@ -338,20 +435,20 @@ class PlayLevelPath:
 
             screen = self.ctx.device.screenshot()
 
-            if is_shackled_challenge_end(screen):
-                return "defeat"
-
             if find_reject_button(screen) is not None:
                 self._handle_pact_reject(screen)
+                end_streak = 0
                 continue
 
             sid = screens.identify_combat(screen)
 
             if sid == ScreenId.SKILL_SELECT:
-                self._pick_skill_skills_only(screen)
+                self._pick_skill(screen)
+                end_streak = 0
                 continue
             if sid == ScreenId.DEVIL_DEAL:
                 self._handle_devil_deal()
+                end_streak = 0
                 continue
             if sid == ScreenId.VICTORY:
                 return "victory"
@@ -359,10 +456,81 @@ class PlayLevelPath:
                 return "defeat"
             if sid == ScreenId.ROULETTE:
                 self._handle_roulette()
+                end_streak = 0
                 continue
             if sid == ScreenId.BATTLE:
+                if event_challenge_end(screen):
+                    end_streak += 1
+                    if end_streak >= 2:
+                        return "victory"
+                else:
+                    end_streak = 0
+                sleep(0.75)
+                continue
+
+            if event_challenge_end(screen):
+                end_streak += 1
+                if end_streak >= 2:
+                    return "victory"
+            else:
+                end_streak = 0
+
+            sleep(0.5)
+
+    def _fight_skills_only(self) -> str:
+        """Shackled Jungle: solo elegir skills, idle entre level-ups."""
+        from ..combat_prompts import event_challenge_end, find_reject_button
+
+        timeout = BattleTimeout(self.battle_timeout)
+        end_streak = 0
+
+        while True:
+            self.ctx.kill.check()
+            if timeout.expired():
+                log.warning("BattleTimeout (%.0fs) alcanzado", self.battle_timeout)
+                return "timeout"
+
+            screen = self.ctx.device.screenshot()
+
+            if find_reject_button(screen) is not None:
+                self._handle_pact_reject(screen)
+                end_streak = 0
+                continue
+
+            sid = screens.identify_combat(screen)
+
+            if sid == ScreenId.SKILL_SELECT:
+                self._pick_skill_skills_only(screen)
+                end_streak = 0
+                continue
+            if sid == ScreenId.DEVIL_DEAL:
+                self._handle_devil_deal()
+                end_streak = 0
+                continue
+            if sid == ScreenId.VICTORY:
+                return "victory"
+            if sid == ScreenId.DEFEAT:
+                return "defeat"
+            if sid == ScreenId.ROULETTE:
+                self._handle_roulette()
+                end_streak = 0
+                continue
+            if sid == ScreenId.BATTLE:
+                if event_challenge_end(screen):
+                    end_streak += 1
+                    if end_streak >= 2:
+                        return "defeat"
+                else:
+                    end_streak = 0
                 sleep(0.5)
                 continue
+
+            if event_challenge_end(screen):
+                end_streak += 1
+                if end_streak >= 2:
+                    return "defeat"
+            else:
+                end_streak = 0
 
             sleep(0.5)
 
@@ -390,7 +558,7 @@ class PlayLevelPath:
         unknown = UnknownScreenWatchdog(patience=18.0)
         dodge_down = True
         idle_taps = 0
-        moved_up = False
+        roulette_grab_attempts = 0
         roulette_done = False
 
         while True:
@@ -439,11 +607,13 @@ class PlayLevelPath:
                     self._handle_pact_reject(screen)
                     continue
                 unknown.reset()
-                # Si la ruleta aún no apareció, nos movemos una vez hacia arriba
-                # para pisarla/dispararla. Si ya se resolvió, no nos movemos.
-                if not moved_up and not roulette_done:
-                    self._grab_roulette()
-                    moved_up = True
+                if (
+                    not roulette_done
+                    and roulette_grab_attempts < ROULETTE_GRAB_MAX_ATTEMPTS
+                ):
+                    roulette_grab_attempts += 1
+                    if not self._grab_roulette(screen, attempt=roulette_grab_attempts):
+                        continue
                     continue
                 if self.dodge:
                     self._dodge(dodge_down)
@@ -458,6 +628,15 @@ class PlayLevelPath:
                 if is_post_run_context(screen):
                     log.info("Post-run detectado (unknown) -> fin de partida")
                     return "victory"
+                if (
+                    not roulette_done
+                    and roulette_grab_attempts < ROULETTE_GRAB_MAX_ATTEMPTS
+                ):
+                    roulette_grab_attempts += 1
+                    if not self._grab_roulette(screen, attempt=roulette_grab_attempts):
+                        continue
+                    unknown.reset()
+                    continue
                 if unknown.update(True):
                     log.warning("Pantalla desconocida prolongada; intento avanzar/recuperar")
                     if self._looks_like_run_end():
@@ -479,19 +658,19 @@ class PlayLevelPath:
             self.ctx.tap_point("roulette", "start", money_check=False, settle=0.0)
         except ValueError:
             self.ctx.tap(450, 1333, money_check=False, settle=0.0)
-        sleep(0.35)
+        sleep(0.2)
         try:
             skip = self.ctx.coords.point("roulette", "skip")
             sx, sy = skip.x, skip.y
         except ValueError:
             sx, sy = 450, 1000
-        for _ in range(5):
+        for _ in range(8):
             self.ctx.kill.check()
             if self.ctx.current_screen() != ScreenId.ROULETTE:
                 log.info("Ruleta cerrada; sigo el combate")
                 return
             self.ctx.tap(sx, sy, money_check=False, settle=0.0)
-            if self.ctx.wait_until_not(ScreenId.ROULETTE, timeout=1.0, interval=0.2):
+            if self.ctx.wait_until_not(ScreenId.ROULETTE, timeout=0.45, interval=0.15):
                 log.info("Ruleta cerrada; sigo el combate")
                 return
         log.warning("La ruleta no se cerró tras varios taps; continúo igual")
@@ -522,18 +701,78 @@ class PlayLevelPath:
         self.ctx.tap(chosen.tap_x, chosen.tap_y, money_check=False, settle=0.0)
         self.ctx.wait_until_not(ScreenId.SKILL_SELECT, timeout=1.5, interval=0.2)
 
-    def _grab_roulette(self) -> None:
-        """Inicio del nivel 50: la ruleta aparece arriba. Movemos al personaje
-        hacia arriba (swipe sostenido) para agarrarla y luego no nos movemos más."""
+    def _field_roulette_target(self, screen) -> tuple[int, int] | None:
+        x, y, w, h = FIELD_ROULETTE_REGION
+        roi = vision.crop(screen, FIELD_ROULETTE_REGION)
+        if roi.size == 0:
+            return None
+        hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+        orange = cv2.inRange(hsv, np.array([5, 80, 80]), np.array([35, 255, 255]))
+        green = cv2.inRange(hsv, np.array([35, 60, 70]), np.array([90, 255, 255]))
+        count, _labels, stats, centroids = cv2.connectedComponentsWithStats(orange)
+        best: tuple[float, int, int] | None = None
+        for i in range(1, count):
+            area = int(stats[i, cv2.CC_STAT_AREA])
+            bx, by, bw, bh = (int(v) for v in stats[i, :4])
+            if area < 1000 or not (45 <= bw <= 180 and 35 <= bh <= 170):
+                continue
+            pad = 24
+            gx0, gy0 = max(0, bx - pad), max(0, by - pad)
+            gx1, gy1 = min(w, bx + bw + pad), min(h, by + bh + pad)
+            green_hits = int((green[gy0:gy1, gx0:gx1] > 0).sum())
+            if green_hits < 250:
+                continue
+            cx = int(x + centroids[i][0])
+            cy = int(y + centroids[i][1])
+            if cx < 500 or cy > 720:
+                continue
+            score = green_hits + area * 0.1 - abs(cx - 560) * 0.4 - max(0, cy - 640) * 1.5
+            if best is None or score > best[0]:
+                best = (score, cx, cy)
+        if best is None:
+            return None
+        return best[1], best[2]
+
+    def _grab_roulette(self, screen, *, attempt: int) -> bool:
+        """Mueve el joystick hacia la ruleta visible en el campo."""
         c = self.ctx.coords
         try:
             a = c.point("battle", "grab_up_from")
-            b = c.point("battle", "grab_up_to")
-            ax, ay, bx, by = a.x, a.y, b.x, b.y
+            ax, ay = a.x, a.y
         except ValueError:
-            ax, ay, bx, by = 450, 1250, 450, 520
-        log.info("Agarrando ruleta inicial: movimiento hacia arriba")
-        self.ctx.swipe(ax, ay, bx, by, duration_ms=450, settle=0.15)
+            ax, ay = 450, 1250
+
+        target = self._field_roulette_target(screen)
+        if target is None:
+            if attempt > 1:
+                log.info("Ruleta de campo no visible; no insisto con movimiento inicial")
+                return False
+            tx, ty = FIELD_PLAYER_ANCHOR[0], FIELD_PLAYER_ANCHOR[1] - 260
+            src = "fallback"
+        else:
+            tx, ty = target
+            src = "vision"
+
+        dx = tx - FIELD_PLAYER_ANCHOR[0]
+        dy = ty - FIELD_PLAYER_ANCHOR[1]
+        norm = math.hypot(dx, dy)
+        if norm < 1.0:
+            return False
+        bx = int(ax + dx / norm * JOYSTICK_RADIUS)
+        by = int(ay + dy / norm * JOYSTICK_RADIUS)
+        log.info(
+            "Agarrando ruleta inicial (%s intento %d): target=(%d,%d) swipe=(%d,%d)->(%d,%d)",
+            src,
+            attempt,
+            tx,
+            ty,
+            ax,
+            ay,
+            bx,
+            by,
+        )
+        self.ctx.swipe(ax, ay, bx, by, duration_ms=850, settle=0.15)
+        return True
 
     def _dodge(self, down: bool) -> None:
         c = self.ctx.coords
@@ -579,9 +818,10 @@ class PlayLevelPath:
         self.ctx.return_to_lobby()
         return is_lobby(self.ctx.device.screenshot())
 
-    def _collect_event_run_end(self, timeout: float = 90.0) -> None:
+    def _collect_event_run_end(self, timeout: float = 90.0) -> bool:
         """Cierra victoria/derrota y recompensas sin exigir lobby (Events/Dungeon)."""
-        from ..combat_prompts import dismiss_shackled_challenge_end, is_shackled_challenge_end
+        from ..combat_prompts import dismiss_shackled_challenge_end, event_challenge_end
+        from ..run_end_dismiss import needs_post_run_dismiss
 
         combat = {
             ScreenId.BATTLE,
@@ -594,13 +834,13 @@ class PlayLevelPath:
         while time.time() < deadline:
             self.ctx.kill.check()
             screen = self.ctx.device.screenshot()
-            if is_shackled_challenge_end(screen):
-                log.info("Fin de run evento (challenge ended) -> tap empty")
+            sid = self.ctx.current_screen()
+            if needs_post_run_dismiss(screen):
+                log.info("Fin de run evento (post-run) -> tap empty")
                 dismiss_shackled_challenge_end(self.ctx)
                 stable_out = 0
                 sleep(0.6)
                 continue
-            sid = self.ctx.current_screen()
             if sid in (ScreenId.VICTORY, ScreenId.DEFEAT):
                 log.info("Fin de run evento (%s) -> continue", sid.value)
                 self.ctx.tap_point("run_end", "continue", money_check=True, settle=0.0)
@@ -608,16 +848,22 @@ class PlayLevelPath:
                 stable_out = 0
                 continue
             if sid in combat:
+                if event_challenge_end(screen):
+                    log.warning(
+                        "Post-run sobre %s; espero fin de combate real",
+                        sid.value,
+                    )
                 stable_out = 0
                 sleep(0.4)
                 continue
             stable_out += 1
             if stable_out >= 2:
                 log.info("Run de evento finalizado (pantalla=%s)", sid.value)
-                return
+                return True
             try:
                 self.ctx.tap_point("events", "dismiss_rewards", money_check=False, settle=0.3)
             except ValueError:
                 pass
             sleep(0.5)
         log.warning("Timeout cerrando run de evento")
+        return False

@@ -1,7 +1,10 @@
 """Cierre de pantallas post-run (recompensas, runas, popups de detalle)."""
 from __future__ import annotations
 
+import time
 from typing import TYPE_CHECKING
+
+import numpy as np
 
 from . import vision
 from .device import sleep
@@ -14,13 +17,20 @@ if TYPE_CHECKING:
 log = get_logger("run_end")
 
 POST_RUN_TAP = (450, 1552)
-FARM_POST_RUN_TAP = (100, 1555)
+# Debajo del grid, centro (evitar columna izq del loot que abre detalle de ítem).
+FARM_POST_RUN_TAP = POST_RUN_TAP
+POST_RUN_FARM_FALLBACK = (320, 1555)
+POST_RUN_SCAN_Y = (1485, 1590)
+POST_RUN_SCAN_X = (200, 700)
 CHALLENGE_END_PIXEL = (450, 330)
 CHALLENGE_ENDED_ANCHOR = "anchors/challenge_ended.png"
 BANNER_SEARCH_REGION = (80, 240, 740, 160)
+ROULETTE_SEARCH_REGION = (80, 90, 740, 180)
 BANNER_TEMPLATE_THRESHOLD = 0.70
 BANNER_TITLE_Y = (305, 355)
 BANNER_TITLE_X = (250, 650)
+POST_RUN_RECHECK_TIMEOUT = 4.0
+POST_RUN_RECHECK_INTERVAL = 0.35
 
 
 def configure_farm_ctx(ctx: BotContext) -> None:
@@ -38,8 +48,40 @@ def post_run_dismiss_tap(_screen=None) -> tuple[int, int]:
     return POST_RUN_TAP
 
 
-def find_safe_post_run_tap(_screen=None) -> tuple[int, int, str]:
-    return POST_RUN_TAP[0], POST_RUN_TAP[1], "calibrated"
+def _loot_like_score(patch) -> float:
+    if patch.size == 0:
+        return 0.0
+    b = patch[:, :, 0].astype(int)
+    g = patch[:, :, 1].astype(int)
+    r = patch[:, :, 2].astype(int)
+    vivid = (np.abs(r - g) + np.abs(g - b) + np.abs(r - b)).astype(float)
+    bright = np.maximum(np.maximum(r, g), b).astype(float)
+    return float(vivid.mean() * 0.6 + bright.mean() * 0.4)
+
+
+def find_safe_post_run_tap(screen) -> tuple[int, int, str]:
+    """Busca zona oscura/uniforme bajo el grid (no sobre ítems/runas)."""
+    h, w = screen.shape[:2]
+    y0, y1 = POST_RUN_SCAN_Y
+    x0, x1 = POST_RUN_SCAN_X
+    best_x, best_y = POST_RUN_TAP
+    best_score = -1.0
+    for y in range(y0, min(y1, h - 5), 6):
+        for x in range(x0, min(x1, w - 5), 14):
+            patch = screen[max(0, y - 6) : y + 7, max(0, x - 10) : x + 11]
+            if patch.size == 0:
+                continue
+            mean = float(patch.mean())
+            std = float(patch.std())
+            loot = _loot_like_score(patch)
+            # Preferir suelo vacío: oscuro, poco colorido, poco contraste de ítem.
+            score = (220.0 - mean) + std * 0.3 - loot * 1.2
+            if score > best_score:
+                best_score = score
+                best_x, best_y = x, y
+    if best_score < 0:
+        return POST_RUN_TAP[0], POST_RUN_TAP[1], "default"
+    return best_x, best_y, "scanned"
 
 
 def _loot_grid_heuristic(screen) -> bool:
@@ -63,7 +105,12 @@ def _banner_pixel_match_strict(screen, x: int, y: int) -> bool:
 
 def _roulette_on_field(screen) -> bool:
     try:
-        return vision.matches(screen, "anchors/roulette.png", threshold=0.68)
+        return vision.matches(
+            screen,
+            "anchors/roulette.png",
+            threshold=0.68,
+            region=ROULETTE_SEARCH_REGION,
+        )
     except FileNotFoundError:
         return False
 
@@ -217,27 +264,67 @@ def _post_run_tap_sequence(ctx: BotContext) -> list[tuple[int, int, str]]:
             seen.add(key)
             taps.append((x, y, src))
 
-    custom = getattr(ctx, "post_run_tap", None)
-    if custom:
-        add(int(custom[0]), int(custom[1]), "farm")
-    add(POST_RUN_TAP[0], POST_RUN_TAP[1], "default")
+    farm_mode = getattr(ctx, "post_run_tap", None) is not None
     try:
         p = ctx.coords.point("run_end", "continue")
         add(p.x, p.y, "coords")
     except (KeyError, ValueError):
         pass
-    try:
-        p = ctx.coords.point("run_end", "continue_farm")
-        add(p.x, p.y, "coords_farm")
-    except (KeyError, ValueError):
-        pass
+    add(POST_RUN_TAP[0], POST_RUN_TAP[1], "default")
+    if farm_mode:
+        try:
+            p = ctx.coords.point("run_end", "continue_farm")
+            if (p.x, p.y) != (POST_RUN_TAP[0], POST_RUN_TAP[1]):
+                add(p.x, p.y, "coords_farm")
+        except (KeyError, ValueError):
+            pass
+        fx, fy = POST_RUN_FARM_FALLBACK
+        if (fx, fy) not in seen:
+            add(fx, fy, "farm_fallback")
     return taps
 
 
 def _tap_dismiss(ctx: BotContext, x: int, y: int, src: str) -> None:
     log.info("tap post-run (%d,%d) src=%s", x, y, src)
     ctx.tap(x, y, money_check=False, settle=0.0)
-    sleep(1.8)
+    sleep(0.45)
+
+
+def _close_item_detail_popup(ctx: BotContext) -> None:
+    log.info("post-run: popup ítem -> cerrar")
+    ctx.back(settle=0.35)
+    screen = ctx.device.screenshot()
+    if is_lobby(screen) or not is_item_detail_popup(screen):
+        return
+    try:
+        close = ctx.coords.point("menu", "close_x")
+        x, y = close.x, close.y
+    except (KeyError, ValueError):
+        x, y = 810, 214
+    log.info("post-run: popup ítem persiste -> tap X (%d,%d)", x, y)
+    ctx.tap(x, y, money_check=False, settle=0.45)
+
+
+def _wait_for_lobby_or_retry(ctx: BotContext, *, timeout: float = POST_RUN_RECHECK_TIMEOUT) -> bool:
+    deadline = time.time() + timeout
+    overlay_seen = 0
+    while time.time() < deadline:
+        ctx.kill.check()
+        screen = ctx.device.screenshot()
+        if is_lobby(screen):
+            return True
+        if is_item_detail_popup(screen):
+            _close_item_detail_popup(ctx)
+            overlay_seen = 0
+            continue
+        if is_post_run_overlay(screen):
+            overlay_seen += 1
+            if overlay_seen >= 2:
+                return False
+        else:
+            overlay_seen = 0
+        sleep(POST_RUN_RECHECK_INTERVAL)
+    return is_lobby(ctx.device.screenshot())
 
 
 def dismiss_post_run_overlays(ctx: BotContext, *, tap: tuple[int, int, str] | None = None) -> None:
@@ -245,12 +332,17 @@ def dismiss_post_run_overlays(ctx: BotContext, *, tap: tuple[int, int, str] | No
     if is_lobby(screen):
         return
     if is_item_detail_popup(screen):
-        log.info("post-run: popup ítem -> back")
-        ctx.back(settle=0.6)
+        _close_item_detail_popup(ctx)
         if is_lobby(ctx.device.screenshot()):
             return
+        screen = ctx.device.screenshot()
     if tap is None:
-        x, y, src = _resolve_post_run_tap(ctx)
+        if getattr(ctx, "post_run_tap", None) and (
+            is_challenge_ended_screen(screen) or _loot_grid_heuristic(screen)
+        ):
+            x, y, src = find_safe_post_run_tap(screen)
+        else:
+            x, y, src = _resolve_post_run_tap(ctx)
     else:
         x, y, src = tap
     _tap_dismiss(ctx, x, y, src)
@@ -285,6 +377,12 @@ def dismiss_to_lobby(ctx: BotContext, *, max_rounds: int = 4) -> bool:
             return is_lobby(ctx.device.screenshot())
 
         tap = taps[round_i % len(taps)]
+        if getattr(ctx, "post_run_tap", None) and (
+            is_challenge_ended_screen(screen)
+            or _loot_grid_heuristic(screen)
+            or is_item_detail_popup(screen)
+        ):
+            tap = None
         log.info(
             "post-run ronda %d/%d screen=%s challenge_end=%s",
             round_i + 1,
@@ -294,7 +392,7 @@ def dismiss_to_lobby(ctx: BotContext, *, max_rounds: int = 4) -> bool:
         )
         dismiss_post_run_overlays(ctx, tap=tap)
 
-        if ctx.wait_for_lobby(timeout=12.0):
+        if _wait_for_lobby_or_retry(ctx):
             log.info("post-run: lobby OK tras tap (ronda %d)", round_i + 1)
             return True
 

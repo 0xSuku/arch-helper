@@ -36,29 +36,10 @@
       <label class="check"><input type="checkbox" id="opt-recover" /> Recover emulador (guild legacy)</label>
     </section>
 
-    <section class="card">
-      <h2>Farm &amp; Play</h2>
-      <div class="grid">
-        <button class="btn btn-primary" data-job="farm">Farm energía</button>
-        <button class="btn btn-accent" data-job="farm_forever">Farm infinito</button>
-        <div class="inline">
-          <input type="number" id="play-games" value="5" min="1" max="99" />
-          <button class="btn" data-job="play">Play N partidas</button>
-        </div>
-      </div>
-    </section>
-
-    <section class="card">
-      <h2>Daily — loop</h2>
-      <div class="grid">
-        <button class="btn btn-primary" data-job="daily_main">Loop principal</button>
-      </div>
-      <p class="hint">popups → shop → events → … → guild → hunt → sidebar</p>
-    </section>
-
     <section class="card card-wide">
-      <h2>Daily — claims individuales</h2>
-      <div class="claims-grid" id="claims-grid"></div>
+      <h2>Automatizaciones</h2>
+      <p class="hint">Agrupadas por confianza. Editá <code>tier</code> en <code>config/daily-claims.json</code>.</p>
+      <div id="task-groups"></div>
     </section>
 
     <section class="card">

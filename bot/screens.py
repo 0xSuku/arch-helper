@@ -40,6 +40,16 @@ ANCHORS: dict[ScreenId, list[str]] = {
     ScreenId.POPUP: ["anchors/popup.png"],
 }
 
+ANCHOR_REGIONS: dict[str, vision.Region] = {
+    "anchors/battle_hud.png": (0, 35, 180, 180),
+    "anchors/roulette.png": (80, 90, 740, 180),
+    "anchors/skill_select.png": (0, 300, 900, 180),
+    "anchors/devil_deal.png": (0, 220, 900, 260),
+    "anchors/victory.png": (60, 240, 780, 180),
+    "anchors/defeat.png": (60, 240, 780, 180),
+    "anchors/challenge_ended.png": (60, 240, 780, 180),
+}
+
 # Orden de chequeo: las pantallas modales (skill/devil/victory/defeat/popup)
 # priman sobre las de fondo (battle/lobby) para no confundirlas.
 CHECK_ORDER = [
@@ -86,7 +96,7 @@ def _identify_from_order(
     for screen_id in order:
         for anchor in ANCHORS.get(screen_id, []):
             try:
-                match = vision.find_template(screen, anchor)
+                match = vision.find_template(screen, anchor, region=ANCHOR_REGIONS.get(anchor))
             except FileNotFoundError:
                 continue
             if match.confidence >= best_conf:
@@ -111,6 +121,8 @@ def identify_live(device: Device, threshold: float = DEFAULT_THRESHOLD) -> Scree
 
 def is_lobby(screen: np.ndarray, threshold: float = 0.72) -> bool:
     try:
-        return vision.matches(screen, "anchors/lobby.png", threshold=threshold)
+        if vision.matches(screen, "anchors/lobby.png", threshold=threshold):
+            return True
     except FileNotFoundError:
-        return False
+        pass
+    return identify(screen, threshold=threshold) == ScreenId.LOBBY

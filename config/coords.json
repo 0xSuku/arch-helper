@@ -132,6 +132,10 @@
 
     "top_up_free": { "x": 220, "y": 490, "label": "Pack free diario (Top Up -> Gold, calibrar si falla)" },
 
+    "gear_chest_blue_free": { "x": 220, "y": 490, "label": "Cofre celeste free diario (Gear Chest, calibrar si falla)" },
+
+    "gear_chest_violet_free": { "x": 680, "y": 490, "label": "Cofre violeta free diario (Gear Chest, calibrar si falla)" },
+
     "gear_draw_x10": { "x": 280, "y": 850, "label": "Draw x10 Mythstone (usa llaves, no dinero real)" }
 
   },
@@ -162,11 +166,25 @@
 
     "shackled_jungle_dismiss_end": { "x": 450, "y": 1552, "label": "Tap empty Challenge has ended (calibrado)" },
 
+    "abyssal_tide_banner": { "x": 450, "y": 1050, "label": "Banner Abyssal Tide (Dungeon tab, 4to evento — calibrado)" },
+
+    "abyssal_tide_start": { "x": 450, "y": 1290, "label": "Start Abyssal Tide (calibrado)" },
+
+    "abyssal_tide_entry_ad": { "x": 320, "y": 1100, "label": "Entrada ticket ad Abyssal (mismo layout que Shackled; calibrar si falla)" },
+
     "arena_banner": { "x": 450, "y": 280, "label": "Banner Arena (Arena tab)" },
 
     "peak_arena_banner": { "x": 450, "y": 480, "label": "Banner Peak Arena (Arena tab)" },
 
-    "arena_challenge": { "x": 450, "y": 1460, "label": "Boton Challenge (Arena)" }
+    "arena_challenge": { "x": 450, "y": 1475, "label": "Boton Challenge (Arena leaderboard)" },
+
+    "arena_refresh": { "x": 450, "y": 1250, "label": "Free Refresh (popup rivales)" },
+
+    "arena_opponent_3": { "x": 400, "y": 840, "label": "Tap rival #3 (centro fila)" },
+
+    "arena_confirm": { "x": 450, "y": 1375, "label": "Confirm (Victory post-arena)" },
+
+    "arena_power_3": { "x": 190, "y": 878, "w": 85, "h": 28, "label": "OCR poder rival #3 (ej. 5.41M)" }
 
   },
 
@@ -280,11 +298,13 @@
 
     "claim": { "x": 680, "y": 1370, "label": "Claim Hunt Gains (verde, derecha)" },
 
-    "quick_hunt": { "x": 220, "y": 1370, "label": "Abrir Quick Hunt" },
+    "quick_hunt": { "x": 264, "y": 1358, "label": "Abrir Quick Hunt" },
 
-    "quick_free": { "x": 220, "y": 1200, "label": "Quick Hunt Free (popup)" },
+    "quick_free": { "x": 274, "y": 1060, "label": "Quick Hunt Free (popup)" },
 
-    "quick_x5": { "x": 680, "y": 1200, "label": "Quick Hunt x5 (popup, calibrar si falla)" },
+    "quick_x5": { "x": 626, "y": 1060, "label": "Quick Hunt x5 (popup)" },
+
+    "close_quick_popup": { "x": 810, "y": 445, "label": "X cerrar popup Quick Hunt" },
 
     "close_popup": { "x": 450, "y": 1500, "label": "Tap vacio cerrar Hunt Gains" }
 
@@ -360,7 +380,7 @@
 
     "continue": { "x": 450, "y": 1552, "label": "Tap empty post-run (calibrado debajo del grid)" },
 
-    "continue_farm": { "x": 100, "y": 1555, "label": "Tap empty post-run farm energía (calibrado)" },
+    "continue_farm": { "x": 450, "y": 1552, "label": "Tap empty post-run farm (centro debajo del grid)" },
 
     "tap_anywhere": { "x": 450, "y": 1552, "label": "Tap empty post-run (calibrado debajo del grid)" }
 

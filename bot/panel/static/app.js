@@ -101,15 +101,68 @@ async function refreshLog() {
 
 async function loadClaims() {
   const data = await api("/api/claims");
-  const grid = $("#claims-grid");
-  grid.innerHTML = "";
-  for (const c of data.claims) {
-    const btn = document.createElement("button");
-    btn.className = "btn claim-btn" + (c.main_loop ? " main-loop" : "");
-    btn.textContent = c.id.replace(/_/g, " ");
-    btn.dataset.job = `daily:${c.id}`;
-    btn.addEventListener("click", () => runJob(`daily:${c.id}`));
-    grid.appendChild(btn);
+  const root = $("#task-groups");
+  root.innerHTML = "";
+
+  for (const group of data.groups || []) {
+    const section = document.createElement("section");
+    section.className = `tier-block tier-${group.id}`;
+
+    const head = document.createElement("div");
+    head.className = "tier-head";
+    const title = document.createElement("h3");
+    title.textContent = group.label;
+    head.appendChild(title);
+    if (group.hint) {
+      const hint = document.createElement("p");
+      hint.className = "tier-hint";
+      hint.textContent = group.hint;
+      head.appendChild(hint);
+    }
+    section.appendChild(head);
+
+    const grid = document.createElement("div");
+    grid.className = "claims-grid";
+
+    for (const item of group.items || []) {
+      if (item.needs_games) {
+        const row = document.createElement("div");
+        row.className = "inline play-row";
+        const input = document.createElement("input");
+        input.type = "number";
+        input.id = "play-games";
+        input.value = "5";
+        input.min = "1";
+        input.max = "99";
+        const btn = document.createElement("button");
+        btn.className = "btn" + (group.id === "trusted" ? " btn-primary" : "");
+        btn.textContent = item.label;
+        btn.dataset.job = item.job;
+        btn.addEventListener("click", () => {
+          const n = Number($("#play-games").value) || 5;
+          runJob(item.job, { games: n });
+        });
+        row.appendChild(input);
+        row.appendChild(btn);
+        grid.appendChild(row);
+        continue;
+      }
+
+      const btn = document.createElement("button");
+      let cls = "btn claim-btn";
+      if (group.id === "trusted") cls += " btn-primary";
+      else if (group.id === "paused") cls += " btn-muted";
+      if (item.main_loop) cls += " main-loop";
+      btn.className = cls;
+      btn.textContent = item.label;
+      btn.dataset.job = item.job;
+      btn.title = item.id;
+      btn.addEventListener("click", () => runJob(item.job));
+      grid.appendChild(btn);
+    }
+
+    section.appendChild(grid);
+    root.appendChild(section);
   }
 }
 

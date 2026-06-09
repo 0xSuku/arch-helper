@@ -8,6 +8,8 @@ Coordenadas en espacio retrato 900x1600 (mismo que screenshot y tap ADB).
 """
 from __future__ import annotations
 
+import time
+
 from .. import vision
 from ..combat import CombatRunner
 from ..daily_checks import DailyChecks, has_red_badge
@@ -27,15 +29,27 @@ WEEKLY_CLAIM_ROWS = (415, 515, 615, 715, 815)
 ACHIEVEMENT_CLAIM_ROWS = (415, 515, 615, 715, 815, 915)
 MILESTONE_KEYS = ("milestone_20", "milestone_40", "milestone_60", "milestone_80", "milestone_100")
 ARENA_FIGHTS = 2
+ARENA_POWER_THRESHOLD_M = 5.0
+ARENA_OPPONENT_INDEX = 3
+ARENA_FALLBACK_OPPONENT_INDEX = 4
+ARENA_REFRESH_BEFORE_FALLBACK = 3
+ARENA_VICTORY_POLL_S = 10.0
+ARENA_VICTORY_TIMEOUT = 180.0
 GOLD_CAVE_QUICK_RAIDS = 3
 SHACKLED_JUNGLE_RUNS = 2
 SHACKLED_JUNGLE_BATTLE_TIMEOUT = 600.0
+ABYSSAL_TIDE_RUNS = 2
+ABYSSAL_TIDE_BATTLE_TIMEOUT = 270.0
 SHACKLED_COMBAT = frozenset({
     ScreenId.BATTLE,
     ScreenId.SKILL_SELECT,
     ScreenId.ROULETTE,
     ScreenId.DEVIL_DEAL,
 })
+DUNGEON_COMBAT = SHACKLED_COMBAT
+DUNGEON_RESUME_CLAIMS = frozenset({"shackled_jungle", "abyssal_tide"})
+ARENA_RESUME_CLAIMS = frozenset({"arena"})
+RESUME_CLAIMS = DUNGEON_RESUME_CLAIMS | ARENA_RESUME_CLAIMS
 GUILD_LEGACY_DONATIONS = 5
 # Región del popup Legacy donde aparece "Ongoing guild tech donations" (loading).
 LEGACY_LOADING_REGION = (150, 550, 600, 220)
@@ -55,6 +69,8 @@ MAIN_LOOP_ORDER: tuple[str, ...] = (
 EXTRA_CLAIMS: tuple[str, ...] = (
     "gold_cave",
     "shackled_jungle",
+    "abyssal_tide",
+    "arena",
     "task_center",
     "friends",
     "camp",
@@ -74,6 +90,11 @@ CLAIM_ALIASES: dict[str, str] = {
     "shackled_jungle": "shackled_jungle",
     "shackled": "shackled_jungle",
     "jungle": "shackled_jungle",
+    "abyssal_tide": "abyssal_tide",
+    "abyssal": "abyssal_tide",
+    "tide": "abyssal_tide",
+    "arena": "arena",
+    "peak_arena": "arena",
     "great_value": "great_value",
     "great-value": "great_value",
     "privilege": "privilege",
@@ -110,6 +131,7 @@ class DailyPath:
         force: bool = False,
         recover_emulator: bool = False,
         recover_ldplayer: bool | None = None,
+        arena_fights: int | None = None,
     ) -> None:
         self.ctx = ctx
         self.checks = DailyChecks(force=force)
@@ -118,6 +140,7 @@ class DailyPath:
             recover_emulator = recover_ldplayer
         self.recover_emulator = recover_emulator
         self._emulator_recovery_used = False
+        self.arena_fights = arena_fights if arena_fights is not None else ARENA_FIGHTS
 
     @classmethod
     def available_claims(cls) -> tuple[str, ...]:
@@ -139,18 +162,58 @@ class DailyPath:
                 resolved.append(key)
         return resolved
 
+    def _skip_lobby_for_abyssal(self) -> bool:
+        return (
+            self._is_abyssal_tide_popup()
+            or self._is_abyssal_combat_active()
+            or self._is_events_hub()
+        )
+
     def _skip_lobby_for_shackled(self) -> bool:
-        return self._is_shackled_jungle_popup() or self._is_shackled_combat_active()
+        return (
+            self._is_shackled_jungle_popup()
+            or self._is_shackled_combat_active()
+            or self._is_events_hub()
+        )
+
+    def _skip_lobby_for_dungeon(self, claim: str) -> bool:
+        if claim == "shackled_jungle":
+            return self._skip_lobby_for_shackled()
+        if claim == "abyssal_tide":
+            return self._skip_lobby_for_abyssal()
+        return False
+
+    def _skip_lobby_for_arena(self) -> bool:
+        return self._is_arena_opponents_popup() or self._is_events_hub()
+
+    def _skip_lobby_for_claim(self, claim: str) -> bool:
+        if claim == "arena":
+            return self._skip_lobby_for_arena()
+        return self._skip_lobby_for_dungeon(claim)
+
+    def _solo_claim_resume(self, selected: list[str]) -> bool:
+        return (
+            len(selected) == 1
+            and selected[0] in RESUME_CLAIMS
+            and self._skip_lobby_for_claim(selected[0])
+        )
+
+    def _solo_dungeon_resume(self, selected: list[str]) -> bool:
+        return self._solo_claim_resume(selected)
 
     def run(self, claims: list[str] | None = None) -> None:
         selected = self.resolve_claims(claims)
-        if not (len(selected) == 1 and selected[0] == "shackled_jungle" and self._skip_lobby_for_shackled()):
+        single_claim = len(selected) == 1
+        lobby_ready = False
+        if not self._solo_claim_resume(selected):
             self.ensure_campaign_lobby()
+            lobby_ready = True
         log.info("Claims a ejecutar: %s", ", ".join(selected))
         for name in selected:
             if not self.checks.should_run(name):
                 continue
-            if not (name == "shackled_jungle" and self._skip_lobby_for_shackled()):
+            resume_ready = name in RESUME_CLAIMS and self._skip_lobby_for_claim(name)
+            if not resume_ready and not (single_claim and lobby_ready):
                 self.ensure_campaign_lobby()
             handler = self._claim_handler(name)
             try:
@@ -168,9 +231,9 @@ class DailyPath:
         self.checks.mark_verified(name)
 
     def ensure_campaign_lobby(self) -> bool:
-        from ..navigation import ensure_campaign_lobby
+        from ..navigation import ensure_game_lobby
 
-        return ensure_campaign_lobby(self.ctx, exit_combat=True)
+        return ensure_game_lobby(self.ctx, exit_combat=True)
 
     def _claim_handler(self, name: str):
         handlers = {
@@ -179,6 +242,8 @@ class DailyPath:
             "events": self.claim_events,
             "gold_cave": self.claim_gold_cave,
             "shackled_jungle": self.claim_shackled_jungle,
+            "abyssal_tide": self.claim_abyssal_tide,
+            "arena": self.claim_arena,
             "great_value": self.claim_great_value,
             "privilege": self.claim_privilege,
             "messages": self.claim_messages,
@@ -224,7 +289,25 @@ class DailyPath:
             p = self.ctx.coords.point(section, key)
         except (KeyError, ValueError):
             return True
-        return has_red_badge(self.ctx.device.screenshot(), p.x, p.y)
+        screen = self.ctx.device.screenshot()
+        if section == "lobby" and key in {"privilege_card", "messages", "great_value"}:
+            return any(
+                has_red_badge(
+                    screen,
+                    p.x,
+                    p.y,
+                    radius=radius,
+                    offset_x=offset_x,
+                    offset_y=offset_y,
+                    min_pixels=min_pixels,
+                )
+                for offset_x, offset_y, radius, min_pixels in (
+                    (16, -16, 20, 55),
+                    (26, -18, 28, 35),
+                    (36, -22, 32, 25),
+                )
+            )
+        return has_red_badge(screen, p.x, p.y)
 
     def _shop_tab_badge(self, tab_key: str) -> bool:
         try:
@@ -281,34 +364,25 @@ class DailyPath:
         self._finish_claim("popups")
 
     def claim_shop(self) -> None:
-        log.info("-> Shop (Gear Chest, Limited Offer, Top Up, Wish)")
+        log.info("-> Shop (Gear Chest, Limited Offer, Top Up)")
         if not self._opt("nav", "shop", settle=1.5):
             return
 
         if self._shop_tab_badge("tab_gear_chest") or self.checks.force:
-            self._opt("shop", "tab_gear_chest", settle=0.8, money_check=False)
-            self._opt("shop", "gear_draw_x10", settle=1.0, money_check=False)
-            self._dismiss_reward_popup(3)
-        else:
-            log.info("Gear Chest sin badge; intento draw igual por si quedó sin exclamación")
             if self._opt("shop", "tab_gear_chest", settle=0.8, money_check=False):
-                self._opt("shop", "gear_draw_x10", settle=1.0, money_check=False)
-                self._dismiss_reward_popup(3)
+                for key in ("gear_chest_blue_free", "gear_chest_violet_free", "gear_draw_x10"):
+                    self._opt("shop", key, settle=1.0, money_check=True)
+                    self._dismiss_reward_popup(2)
 
-        if self._shop_tab_badge("tab_limited_offer"):
+        if self._shop_tab_badge("tab_limited_offer") or self.checks.force:
             self._opt("shop", "tab_limited_offer", settle=0.8, money_check=False)
-            self._opt("shop", "limited_offer_free", settle=0.8, money_check=False)
+            self._opt("shop", "limited_offer_free", settle=0.8, money_check=True)
             self._dismiss_reward_popup(2)
 
-        if self._shop_tab_badge("tab_top_up"):
+        if self._shop_tab_badge("tab_top_up") or self.checks.force:
             self._opt("shop", "tab_top_up", settle=0.8, money_check=False)
             self._opt("shop", "top_up_sub_gold", settle=0.8, money_check=False)
-            self._opt("shop", "top_up_free", settle=0.8, money_check=False)
-            self._dismiss_reward_popup(2)
-
-        if self._shop_tab_badge("tab_wish"):
-            self._opt("shop", "tab_wish", settle=0.8, money_check=False)
-            self._opt("shop", "wish_free", settle=0.8, money_check=False)
+            self._opt("shop", "top_up_free", settle=0.8, money_check=True)
             self._dismiss_reward_popup(2)
 
         self._go_campaign()
@@ -339,6 +413,23 @@ class DailyPath:
         finally:
             self._exit_shackled_jungle()
 
+    def claim_abyssal_tide(self) -> None:
+        log.info("-> Events / Dungeon / Abyssal Tide")
+        try:
+            resume = self._is_abyssal_combat_active()
+            if resume:
+                runs = self._events_abyssal_tide(resume=True)
+            elif self._is_abyssal_tide_popup():
+                runs = self._events_abyssal_tide(from_popup=True)
+            else:
+                runs = self._events_abyssal_tide()
+            if runs > 0:
+                self._finish_claim("abyssal_tide")
+            else:
+                log.warning("Abyssal Tide: 0 runs completados; no marco como verificado")
+        finally:
+            self._exit_abyssal_tide()
+
     def _events_subtab_highlighted(self, screen, x: int) -> bool:
         b, g, r = screen[1380, x]
         return int(g) > 150 and (int(b) > 200 or int(r) > 200)
@@ -349,31 +440,63 @@ class DailyPath:
             return False
         if self._is_shackled_jungle_popup_screen(img):
             return True
+        if self._is_abyssal_tide_popup_screen(img):
+            return True
         return any(self._events_subtab_highlighted(img, x) for x in (180, 450, 680))
 
-    def _ensure_events_hub(self) -> bool:
-        if self._is_shackled_jungle_popup() or self._is_events_hub():
+    def _try_open_events_nav(self) -> bool:
+        if self._is_shackled_jungle_popup() or self._is_abyssal_tide_popup():
             return True
-        if not self.ensure_campaign_lobby():
-            log.warning("  No se llegó al lobby antes de Events")
-            return False
+        if self._is_events_hub():
+            return True
+
+        self._opt("nav", "campaign", settle=1.2, money_check=False)
+        sleep(0.8)
         before = self.ctx.device.screenshot()
         if not self._opt("nav", "events", settle=1.5, money_check=False):
-            return False
-        after = self.ctx.device.screenshot()
-        if self._is_events_hub(after) or self._is_shackled_jungle_popup_screen(after):
-            return True
-        if vision.difference(before, after) <= 0.015:
-            log.warning("  Tap Events sin cambio de pantalla; reintento")
-            self._opt("nav", "events", settle=1.5, money_check=False)
+            return self._is_events_hub()
+
+        deadline = time.monotonic() + 12.0
+        while time.monotonic() < deadline:
+            self.ctx.kill.check()
             after = self.ctx.device.screenshot()
-        ok = self._is_events_hub(after) or self._is_shackled_jungle_popup_screen(after)
-        if not ok:
-            log.warning("  No se confirmó pantalla Events (quedó en %s)", self.ctx.current_screen().value)
-        return ok
+            if self._is_events_hub(after):
+                return True
+            if vision.difference(before, after) > 0.02:
+                sleep(0.45)
+                continue
+            sleep(0.45)
+
+        after = self.ctx.device.screenshot()
+        if self._is_events_hub(after):
+            return True
+        if vision.difference(before, after) > 0.015:
+            log.info(
+                "  Events: pantalla cambió (%s); continúo hacia Dungeon",
+                self.ctx.current_screen().value,
+            )
+            return True
+        log.warning(
+            "  No se confirmó pantalla Events (quedó en %s)",
+            self.ctx.current_screen().value,
+        )
+        return False
+
+    def _ensure_events_hub(self) -> bool:
+        if (
+            self._is_shackled_jungle_popup()
+            or self._is_abyssal_tide_popup()
+            or self._is_events_hub()
+        ):
+            return True
+        return self._try_open_events_nav()
 
     def _is_shackled_jungle_popup_screen(self, screen) -> bool:
+        from ..screens import identify_combat
+
         if is_lobby(screen):
+            return False
+        if identify_combat(screen) in DUNGEON_COMBAT:
             return False
         b, g, r = screen[1264, 450]
         if not (int(r) > 200 and int(g) > 150):
@@ -385,16 +508,48 @@ class DailyPath:
     def _is_shackled_jungle_popup(self) -> bool:
         return self._is_shackled_jungle_popup_screen(self.ctx.device.screenshot())
 
+    def _dungeon_start_pixel(self, start_key: str) -> tuple[int, int]:
+        try:
+            p = self.ctx.coords.point("events", start_key)
+            return p.y, p.x
+        except ValueError:
+            return 1264, 450
+
+    def _dungeon_event_popup_screen(self, screen, start_key: str) -> bool:
+        from ..screens import identify_combat
+
+        if is_lobby(screen):
+            return False
+        if identify_combat(screen) in DUNGEON_COMBAT:
+            return False
+        if self._events_subtab_highlighted(screen, 680):
+            return False
+        sy, sx = self._dungeon_start_pixel(start_key)
+        b, g, r = screen[sy, sx]
+        if not (int(r) > 200 and int(g) > 150):
+            return False
+        return True
+
+    def _is_abyssal_tide_popup_screen(self, screen) -> bool:
+        if not self._dungeon_event_popup_screen(screen, "abyssal_tide_start"):
+            return False
+        # Título "Abyssal Tide" arriba-izq (Refresh en skill select no lo tiene)
+        tb, tg, tr = screen[165, 250]
+        return int(tb) > 200 and int(tg) < 130
+
+    def _is_abyssal_tide_popup(self) -> bool:
+        return self._is_abyssal_tide_popup_screen(self.ctx.device.screenshot())
+
     def claim_events(self) -> None:
         log.info("-> Events (Gold Cave + Arena + Peak Arena)")
         if not self._opt("nav", "events", settle=1.5):
             return
 
         self._events_gold_cave()
-        self._events_arena_mode("arena", fights=ARENA_FIGHTS)
-        self._events_arena_mode("peak_arena", fights=ARENA_FIGHTS)
+        self._run_arena_fights("arena", fights=self.arena_fights)
+        self._run_arena_fights("peak_arena", fights=ARENA_FIGHTS)
 
-        self._go_campaign()
+        self._leave_arena_to_campaign()
         self._finish_claim("events")
 
     def _gold_cave_dismiss_rewards(self) -> None:
@@ -474,18 +629,30 @@ class DailyPath:
         self._opt("events", "dismiss_rewards", settle=0.5, money_check=False)
 
     def _exit_shackled_jungle(self) -> None:
-        from ..combat_prompts import dismiss_shackled_challenge_end, is_shackled_challenge_end
+        from ..combat_prompts import dismiss_shackled_challenge_end, event_challenge_end
+        from ..run_end_dismiss import needs_post_run_dismiss
 
         if is_lobby(self.ctx.device.screenshot()):
             return
         log.info("  Saliendo de Shackled Jungle -> lobby campaña")
-        for _ in range(8):
+        for _ in range(10):
             self.ctx.kill.check()
             img = self.ctx.device.screenshot()
+            sid = self.ctx.current_screen()
             if is_lobby(img):
                 log.info("  Lobby de campaña alcanzado")
                 return
-            if is_shackled_challenge_end(img):
+            if sid in DUNGEON_COMBAT:
+                if needs_post_run_dismiss(img):
+                    log.info("  Cerrando post-run Shackled Jungle")
+                    dismiss_shackled_challenge_end(self.ctx)
+                    sleep(0.8)
+                elif self._resume_shackled_combat():
+                    continue
+                else:
+                    sleep(0.5)
+                continue
+            if event_challenge_end(img) or needs_post_run_dismiss(img):
                 log.info("  Cerrando pantalla Challenge has ended")
                 dismiss_shackled_challenge_end(self.ctx)
                 sleep(0.8)
@@ -500,7 +667,6 @@ class DailyPath:
                 self._go_campaign()
                 sleep(1.0)
                 continue
-            sid = self.ctx.current_screen()
             if sid in (ScreenId.VICTORY, ScreenId.DEFEAT):
                 self._opt("run_end", "continue", settle=0.5, money_check=False)
                 sleep(0.6)
@@ -561,9 +727,13 @@ class DailyPath:
     def _run_one_shackled(self, dungeon_combat: CombatRunner) -> bool:
         result = dungeon_combat.run_until_end()
         log.info("    resultado: %s", result)
-        dungeon_combat.collect_event_end()
+        if not self._shackled_run_counted(result):
+            return False
+        if not dungeon_combat.collect_event_end():
+            log.warning("    post-run Shackled no cerrado")
+            return False
         sleep(0.8)
-        return self._shackled_run_counted(result)
+        return True
 
     def _events_shackled_jungle(self, *, resume: bool = False, from_popup: bool = False) -> int:
         log.info("  Shackled Jungle (%d runs, solo skills, sin movimiento)", SHACKLED_JUNGLE_RUNS)
@@ -612,34 +782,453 @@ class DailyPath:
 
         return completed
 
-    def _events_arena_mode(self, mode: str, *, fights: int) -> None:
+    def _is_abyssal_combat_active(self) -> bool:
+        return self.ctx.current_screen() in DUNGEON_COMBAT
+
+    def _open_abyssal_tide_popup(self) -> bool:
+        if self._is_abyssal_tide_popup():
+            return True
+        if not self._is_events_hub():
+            self._try_open_events_nav()
+
+        def try_banner() -> bool:
+            before = self.ctx.device.screenshot()
+            if not self._opt("events", "abyssal_tide_banner", settle=1.2, money_check=False):
+                return False
+            sleep(0.4)
+            if self._is_abyssal_tide_popup():
+                return True
+            after = self.ctx.device.screenshot()
+            if vision.difference(before, after) <= 0.015:
+                return False
+            return self._is_abyssal_tide_popup()
+
+        self._opt("events", "tab_dungeon", settle=1.0, money_check=False)
+        sleep(0.4)
+        if try_banner():
+            return True
+        log.info("  Scroll lista Dungeon hacia Abyssal Tide")
+        self.ctx.swipe(450, 900, 450, 450, 450)
+        sleep(0.5)
+        self._opt("events", "tab_dungeon", settle=0.5, money_check=False)
+        sleep(0.3)
+        if try_banner():
+            return True
+        self.ctx.swipe(450, 450, 450, 900, 450)
+        sleep(0.5)
+        return try_banner()
+
+    def _resume_shackled_combat(self) -> bool:
+        if self.ctx.current_screen() not in DUNGEON_COMBAT:
+            return False
+        log.info("  Retomando combate Shackled Jungle")
+        runner = CombatRunner(
+            self.ctx,
+            battle_timeout=SHACKLED_JUNGLE_BATTLE_TIMEOUT,
+            dodge=False,
+            skills_only=True,
+        )
+        return self._run_one_shackled(runner)
+
+    def _resume_abyssal_combat(self) -> bool:
+        if self.ctx.current_screen() not in DUNGEON_COMBAT:
+            return False
+        log.info("  Retomando combate Abyssal Tide")
+        runner = CombatRunner(
+            self.ctx,
+            battle_timeout=ABYSSAL_TIDE_BATTLE_TIMEOUT,
+            dodge=False,
+            afk_only=True,
+        )
+        return self._run_one_abyssal(runner)
+
+    def _exit_abyssal_tide(self) -> None:
+        from ..combat_prompts import dismiss_shackled_challenge_end, event_challenge_end
+        from ..run_end_dismiss import needs_post_run_dismiss
+
+        if is_lobby(self.ctx.device.screenshot()):
+            return
+        log.info("  Saliendo de Abyssal Tide -> lobby campaña")
+        for _ in range(10):
+            self.ctx.kill.check()
+            img = self.ctx.device.screenshot()
+            sid = self.ctx.current_screen()
+            if is_lobby(img):
+                log.info("  Lobby de campaña alcanzado")
+                return
+            if sid in DUNGEON_COMBAT:
+                if needs_post_run_dismiss(img):
+                    log.info("  Cerrando post-run Abyssal Tide")
+                    dismiss_shackled_challenge_end(self.ctx)
+                    sleep(0.8)
+                elif self._resume_abyssal_combat():
+                    continue
+                else:
+                    sleep(0.5)
+                continue
+            if event_challenge_end(img) or needs_post_run_dismiss(img):
+                log.info("  Cerrando pantalla Challenge has ended")
+                dismiss_shackled_challenge_end(self.ctx)
+                sleep(0.8)
+                continue
+            if self._is_abyssal_tide_popup_screen(img):
+                log.info("  Back desde popup Abyssal Tide")
+                self._opt("menu", "back", settle=0.8, money_check=False)
+                sleep(0.8)
+                continue
+            if self._is_events_hub(img):
+                log.info("  Events -> Campaign")
+                self._go_campaign()
+                sleep(1.0)
+                continue
+            if sid in (ScreenId.VICTORY, ScreenId.DEFEAT):
+                self._opt("run_end", "continue", settle=0.5, money_check=False)
+                sleep(0.6)
+                continue
+            self._opt("events", "dismiss_rewards", settle=0.5, money_check=False)
+            self._opt("menu", "back", settle=0.5, money_check=False)
+            self._go_campaign()
+            sleep(0.8)
+        if not is_lobby(self.ctx.device.screenshot()):
+            log.warning("  No se confirmó lobby tras salir de Abyssal Tide")
+            self.ensure_campaign_lobby()
+
+    def _start_abyssal_tide_run(self, *, use_ad_ticket: bool = False) -> bool:
+        if not self._is_abyssal_tide_popup():
+            log.warning("    Start ignorado: no estamos en popup Abyssal Tide")
+            return False
+        if use_ad_ticket:
+            log.info("    ticket ad -> seleccionar entrada + doble Start")
+            self._select_abyssal_ad_entry()
+            taps = 2
+        else:
+            log.info("    Start (ticket free)")
+            taps = 1
+        before = self.ctx.device.screenshot()
+        self._abyssal_tide_tap_start(taps=taps)
+        sleep(1.5)
+        if self.ctx.current_screen() in DUNGEON_COMBAT:
+            return True
+        after = self.ctx.device.screenshot()
+        if vision.difference(before, after) <= 0.015:
+            if not use_ad_ticket and self._abyssal_ad_ticket_visible(after):
+                log.info("    Start sin respuesta; reintento con ticket ad + doble Start")
+                self._select_abyssal_ad_entry()
+                self._abyssal_tide_tap_start(taps=2)
+                sleep(1.5)
+                return self.ctx.current_screen() in DUNGEON_COMBAT
+            return False
+        return self.ctx.current_screen() in DUNGEON_COMBAT
+
+    def _abyssal_tide_tap_start(self, *, taps: int = 1) -> None:
+        for i in range(taps):
+            self._opt(
+                "events",
+                "abyssal_tide_start",
+                settle=0.4 if i < taps - 1 else 1.0,
+                money_check=False,
+            )
+            if i < taps - 1:
+                sleep(0.7)
+
+    def _select_abyssal_ad_entry(self) -> None:
+        if not self._opt("events", "abyssal_tide_entry_ad", settle=0.6, money_check=False):
+            self._opt("events", "shackled_jungle_entry_ad", settle=0.6, money_check=False)
+
+    def _abyssal_ad_ticket_visible(self, screen=None) -> bool:
+        img = screen if screen is not None else self.ctx.device.screenshot()
+        if not self._is_abyssal_tide_popup_screen(img):
+            return False
+        try:
+            p = self.ctx.coords.point("events", "abyssal_tide_entry_ad")
+            x, y = p.x, p.y
+        except ValueError:
+            x, y = 320, 1100
+        b, g, r = img[y, x]
+        return int(g) > 90 or int(b) > 130 or (int(r) > 160 and int(g) > 100)
+
+    def _abyssal_run_counted(self, result: str) -> bool:
+        return result in ("victory", "defeat")
+
+    def _run_one_abyssal(self, dungeon_combat: CombatRunner) -> bool:
+        result = dungeon_combat.run_until_end()
+        log.info("    resultado: %s", result)
+        if not self._abyssal_run_counted(result):
+            return False
+        if not dungeon_combat.collect_event_end():
+            log.warning("    post-run Abyssal no cerrado")
+            return False
+        sleep(0.8)
+        return True
+
+    def _events_abyssal_tide(self, *, resume: bool = False, from_popup: bool = False) -> int:
+        log.info("  Abyssal Tide (hasta %d free + ad si visible, AFK)", ABYSSAL_TIDE_RUNS)
+
+        dungeon_combat = CombatRunner(
+            self.ctx,
+            battle_timeout=ABYSSAL_TIDE_BATTLE_TIMEOUT,
+            dodge=False,
+            afk_only=True,
+        )
+
+        completed = 0
+        runs_left = ABYSSAL_TIDE_RUNS
+        self.ctx.hold_combat = True
+        try:
+            if resume or self._is_abyssal_combat_active():
+                log.info("    retomando combate en curso")
+                if self._run_one_abyssal(dungeon_combat):
+                    completed += 1
+                runs_left -= 1
+                if runs_left <= 0 and not self._abyssal_ad_ticket_visible():
+                    return completed
+
+            if not (from_popup or self._is_abyssal_tide_popup()):
+                if not self._open_abyssal_tide_popup():
+                    log.warning("  No se abrió popup Abyssal Tide")
+                    return completed
+
+            for n in range(runs_left):
+                run_num = ABYSSAL_TIDE_RUNS - runs_left + n + 1
+                log.info("    run %d/%d (free)", run_num, ABYSSAL_TIDE_RUNS)
+                if not self._start_abyssal_tide_run(use_ad_ticket=False):
+                    log.info("    Start free no disponible; corto free runs")
+                    break
+                if self._run_one_abyssal(dungeon_combat):
+                    completed += 1
+                if n + 1 >= runs_left:
+                    break
+                sleep(0.5)
+                if not self._is_abyssal_tide_popup() and not self._open_abyssal_tide_popup():
+                    break
+
+            if self._is_abyssal_tide_popup() and self._abyssal_ad_ticket_visible():
+                log.info("    run ad (ticket video visible)")
+                if self._start_abyssal_tide_run(use_ad_ticket=True):
+                    if self._run_one_abyssal(dungeon_combat):
+                        completed += 1
+        finally:
+            self.ctx.hold_combat = False
+
+        return completed
+
+    def claim_arena(self) -> None:
+        log.info("-> Events / Arena (%d peleas)", self.arena_fights)
+        if not self._is_arena_opponents_popup() and not self._ensure_events_hub():
+            return
+        done = self._run_arena_fights("arena", fights=self.arena_fights)
+        log.info("  Arena: %d/%d peleas", done, self.arena_fights)
+        self._leave_arena_to_campaign()
+        self._finish_claim("arena")
+
+    def _is_arena_opponents_popup(self, screen=None) -> bool:
+        img = screen if screen is not None else self.ctx.device.screenshot()
+        try:
+            return vision.matches(
+                img,
+                "anchors/arena_opponents_popup.png",
+                threshold=0.72,
+                region=(300, 300, 260, 80),
+            )
+        except FileNotFoundError:
+            return False
+
+    def _open_arena_rivals_popup(self, banner_key: str) -> bool:
+        if self._is_arena_opponents_popup():
+            return True
+        if not self._ensure_events_hub():
+            return False
+        self._opt("events", "tab_arena", settle=1.0, money_check=False)
+        if not self._opt("events", banner_key, settle=1.5, money_check=False):
+            return False
+        sleep(0.8)
+        if self._is_arena_opponents_popup():
+            return True
+        if not self._opt("events", "arena_challenge", settle=1.2, money_check=False):
+            return False
+        sleep(1.5)
+        ok = self._is_arena_opponents_popup()
+        if not ok:
+            log.warning("  Popup de rivales Arena no detectado")
+        return ok
+
+    def _read_arena_opponent_power(self, index: int = ARENA_OPPONENT_INDEX) -> float | None:
+        row_i = max(0, index - 1)
+        return vision.read_arena_opponent_power(self.ctx.device.screenshot(), row_i)
+
+    def _arena_row_tap_y(self, index: int = ARENA_OPPONENT_INDEX) -> int | None:
+        rows = vision.find_arena_power_row_ys(self.ctx.device.screenshot())
+        row_i = max(0, index - 1)
+        if len(rows) <= row_i:
+            return None
+        return rows[row_i]
+
+    def _arena_refresh_opponents(self) -> None:
+        try:
+            match = vision.find_template(
+                self.ctx.device.screenshot(),
+                "anchors/arena_free_refresh.png",
+                region=(200, 1210, 500, 90),
+            )
+            if match.confidence >= 0.62:
+                log.info("  refresh (template conf=%.2f)", match.confidence)
+                self.ctx.tap(match.cx, match.cy, money_check=False, settle=0.0)
+            else:
+                self._opt("events", "arena_refresh", settle=0.0, money_check=False)
+        except FileNotFoundError:
+            self._opt("events", "arena_refresh", settle=0.0, money_check=False)
+        sleep(2.0)
+
+    def _is_arena_victory_screen(self, screen=None) -> bool:
+        img = screen if screen is not None else self.ctx.device.screenshot()
+        try:
+            if vision.matches(
+                img,
+                "anchors/arena_victory.png",
+                threshold=0.68,
+                region=(280, 350, 340, 200),
+            ):
+                return True
+            if vision.matches(
+                img,
+                "anchors/arena_confirm.png",
+                threshold=0.62,
+                region=(220, 1330, 460, 180),
+            ):
+                return True
+        except FileNotFoundError:
+            pass
+        return False
+
+    def _tap_arena_confirm(self) -> None:
+        self._opt("events", "arena_confirm", settle=1.5, money_check=False)
+
+    def _wait_arena_victory_and_confirm(self) -> bool:
+        deadline = time.monotonic() + ARENA_VICTORY_TIMEOUT
+        while time.monotonic() < deadline:
+            self.ctx.kill.check()
+            screen = self.ctx.device.screenshot()
+            if self._is_arena_victory_screen(screen):
+                log.info("  victoria arena -> Confirm")
+                self._tap_arena_confirm()
+                sleep(1.0)
+                return True
+            if self._is_arena_opponents_popup(screen):
+                log.info("  popup rivales (fin arena)")
+                return True
+            sid = self.ctx.current_screen()
+            log.info("  esperando fin arena (%s)...", sid.value)
+            sleep(ARENA_VICTORY_POLL_S)
+        log.warning("  timeout fin arena (%.0fs); intento salir combate", ARENA_VICTORY_TIMEOUT)
+        if self.ctx.current_screen() == ScreenId.BATTLE:
+            self._exit_battle()
+        return self._is_arena_opponents_popup() or self._is_arena_victory_screen()
+
+    def _arena_attack_opponent(self, index: int = ARENA_OPPONENT_INDEX) -> None:
+        y = self._arena_row_tap_y(index)
+        if y is None:
+            self._opt("events", "arena_opponent_3", settle=0.6, money_check=False)
+            return
+        self._tap(800, y, settle=0.8)
+
+    def _wait_for_battle_start(self, timeout: float = 18.0) -> bool:
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            self.ctx.kill.check()
+            if self.ctx.current_screen() == ScreenId.BATTLE:
+                return True
+            sleep(0.35)
+        return False
+
+    def _wait_arena_opponents(self, timeout: float = 20.0) -> bool:
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            self.ctx.kill.check()
+            if self._is_arena_opponents_popup():
+                return True
+            sleep(0.35)
+        return False
+
+    def _arena_pick_opponent_once(self) -> bool:
+        target = ARENA_OPPONENT_INDEX
+        for refresh_i in range(ARENA_REFRESH_BEFORE_FALLBACK):
+            power = self._read_arena_opponent_power(ARENA_OPPONENT_INDEX)
+            log.info("  rival #%d poder=%s", ARENA_OPPONENT_INDEX, f"{power:.2f}M" if power else "?")
+            if power is not None and power < ARENA_POWER_THRESHOLD_M:
+                target = ARENA_OPPONENT_INDEX
+                break
+            log.info("  refresh %d/%d", refresh_i + 1, ARENA_REFRESH_BEFORE_FALLBACK)
+            self._arena_refresh_opponents()
+        else:
+            target = ARENA_FALLBACK_OPPONENT_INDEX
+            power4 = self._read_arena_opponent_power(ARENA_FALLBACK_OPPONENT_INDEX)
+            log.info(
+                "  rival #%d sigue fuerte -> ataco rival #%d (poder=%s)",
+                ARENA_OPPONENT_INDEX,
+                target,
+                f"{power4:.2f}M" if power4 else "?",
+            )
+
+        log.info("  atacar rival #%d", target)
+        self._arena_attack_opponent(target)
+        sleep(1.0)
+        if not self._wait_for_battle_start(timeout=20.0):
+            if self._is_arena_victory_screen():
+                self._tap_arena_confirm()
+            elif not self._wait_arena_victory_and_confirm():
+                log.warning("  no entró combate ni victoria tras tap rival")
+                return False
+            if self._wait_arena_opponents(timeout=25):
+                return True
+            return self._open_arena_rivals_popup("arena_banner")
+
+        if not self._wait_arena_victory_and_confirm():
+            log.warning("  no se cerró victoria arena")
+            if self._is_arena_victory_screen():
+                self._tap_arena_confirm()
+
+        if not self._wait_arena_opponents(timeout=30):
+            log.warning("  no volvió popup rivales tras confirm")
+            if not self._open_arena_rivals_popup("arena_banner"):
+                return False
+        return True
+
+    def _run_arena_fights(self, mode: str, *, fights: int) -> int:
         banner = "arena_banner" if mode == "arena" else "peak_arena_banner"
         log.info("  %s (%d peleas)", mode, fights)
-        self._opt("events", "tab_arena", settle=1.0, money_check=False)
-        if not self._opt("events", banner, settle=1.5, money_check=False):
-            return
+        if not self._open_arena_rivals_popup(banner):
+            return 0
 
+        completed = 0
         for n in range(fights):
             log.info("    pelea %d/%d", n + 1, fights)
-            if not self._opt("events", "arena_challenge", settle=1.0, money_check=False):
+            if self._is_arena_victory_screen():
+                log.info("  victoria pendiente -> Confirm")
+                self._tap_arena_confirm()
+                sleep(1.0)
+            if not self._is_arena_opponents_popup():
+                if not self._open_arena_rivals_popup(banner):
+                    break
+            if self._arena_pick_opponent_once():
+                completed += 1
+            else:
                 break
-            self._pick_arena_opponent()
-            result = self.combat.run_until_end()
-            log.info("    resultado: %s", result)
-            self.combat.collect_end()
-            sleep(1.0)
+            sleep(0.8)
+        return completed
 
+    def _leave_arena_to_campaign(self) -> None:
+        if self._is_arena_opponents_popup():
+            self._back()
+            sleep(0.8)
         self._back()
+        sleep(0.6)
+        self._go_campaign()
+
+    def _events_arena_mode(self, mode: str, *, fights: int) -> None:
+        self._run_arena_fights(mode, fights=fights)
 
     def _pick_arena_opponent(self) -> None:
-        """Elige oponente: intenta filas medias (600-900 aprox) y cae al primero."""
-        rows = (520, 680, 840, 400)
-        for y in rows:
-            self._tap(750, y, settle=0.8)
-            sid = self.ctx.current_screen()
-            if sid in (ScreenId.BATTLE, ScreenId.ROULETTE, ScreenId.SKILL_SELECT):
-                return
-        self._tap(750, 680, settle=0.8)
+        self._arena_pick_opponent_once()
 
     def claim_great_value(self) -> None:
         log.info("-> Great Value")
@@ -667,14 +1256,8 @@ class DailyPath:
     def claim_messages(self) -> None:
         log.info("-> Messages")
         has_mail = self._lobby_badge("lobby", "messages")
-        try:
-            has_mail = has_mail or vision.matches(
-                self.ctx.device.screenshot(), MESSAGES_ICON, threshold=0.72
-            )
-        except FileNotFoundError:
-            pass
         if not has_mail:
-            log.info("Sin badge/icono de Messages; omito")
+            log.info("Sin badge en Messages; omito")
             return
         if not self._opt("lobby", "messages", settle=1.2, money_check=False):
             return
@@ -834,18 +1417,25 @@ class DailyPath:
             log.info("    Sin badge en Schedule; omito")
         self._back()
 
+    def _hunt_dismiss_rewards(self, *, wait_s: float = 2.0) -> None:
+        sleep(wait_s)
+        self._opt("hunt", "close_popup", settle=0.6, money_check=False)
+
     def claim_hunt(self) -> None:
         log.info("-> Hunt (Claim + Quick Hunt free + x5)")
         if not self._opt("lobby", "hunt", settle=1.2, money_check=False):
             return
         if self._opt("hunt", "claim", settle=0.8, money_check=False):
-            self._dismiss_reward_popup(3)
-        if self._opt("hunt", "quick_hunt", settle=0.8, money_check=False):
-            self._opt("hunt", "quick_free", settle=0.6, money_check=False)
-            self._dismiss_reward_popup(2)
-            self._opt("hunt", "quick_x5", settle=0.6, money_check=False)
-            self._dismiss_reward_popup(2)
-            self._opt("menu", "close_x", settle=0.4, money_check=False)
+            log.info("  Hunt claim: espero rewards y cierro overlay inferior")
+            self._hunt_dismiss_rewards(wait_s=2.0)
+        if self._opt("hunt", "quick_hunt", settle=1.2, money_check=False):
+            for _ in range(3):
+                self._opt("hunt", "quick_free", settle=0.6, money_check=False)
+                self._hunt_dismiss_rewards(wait_s=1.0)
+            for _ in range(3):
+                self._opt("hunt", "quick_x5", settle=0.6, money_check=False)
+                self._hunt_dismiss_rewards(wait_s=1.0)
+            self._opt("hunt", "close_quick_popup", settle=0.4, money_check=False)
         self._opt("hunt", "close_popup", settle=0.4, money_check=False)
         self._finish_claim("hunt")
 

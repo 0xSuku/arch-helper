@@ -13,6 +13,7 @@ class CombatRunner:
         battle_timeout: float = 180.0,
         dodge: bool = False,
         skills_only: bool = False,
+        afk_only: bool = False,
     ) -> None:
         self._path = PlayLevelPath(
             ctx,
@@ -20,6 +21,7 @@ class CombatRunner:
             battle_timeout=battle_timeout,
             dodge=dodge,
             skills_only=skills_only,
+            afk_only=afk_only,
         )
 
     def run_until_end(self) -> str:
@@ -28,5 +30,5 @@ class CombatRunner:
     def collect_end(self) -> None:
         self._path._collect_run_end()
 
-    def collect_event_end(self) -> None:
-        self._path._collect_event_run_end()
+    def collect_event_end(self) -> bool:
+        return self._path._collect_event_run_end()

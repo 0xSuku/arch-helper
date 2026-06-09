@@ -127,6 +127,46 @@ h1 {
   gap: 0.5rem;
 }
 
+.tier-block {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.tier-block:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.tier-head h3 {
+  margin: 0 0 0.2rem;
+  font-size: 1rem;
+}
+
+.tier-hint {
+  margin: 0 0 0.55rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.tier-trusted .tier-head h3 {
+  color: var(--accent);
+}
+
+.tier-paused .tier-head h3 {
+  color: var(--muted);
+}
+
+.btn-muted {
+  opacity: 0.72;
+}
+
+.play-row {
+  grid-column: 1 / -1;
+  max-width: 20rem;
+}
+
 .row, .inline {
   display: flex;
   gap: 0.5rem;

@@ -137,8 +137,8 @@
       "file": "8293365c1e8583a2.png",
       "skill_id": "dano/ricochet_arrow",
       "category": "dano",
-      "confidence": 0.39,
-      "source": "labeled"
+      "confidence": 0.996,
+      "source": "matched"
     },
     "888e357b3b31898a": {
       "file": "888e357b3b31898a.png",
@@ -163,10 +163,10 @@
     },
     "684e0b07070f8e88": {
       "file": "684e0b07070f8e88.png",
-      "skill_id": "dano/ice_spike_sprite",
-      "category": "dano",
-      "confidence": 0.596,
-      "source": "labeled"
+      "skill_id": "utilidad/restore_hp",
+      "category": "utilidad",
+      "confidence": 0.633,
+      "source": "matched"
     },
     "80954d198d932cb0": {
       "file": "80954d198d932cb0.png",
@@ -562,9 +562,9 @@
     },
     "80960f0f270f8a80": {
       "file": "80960f0f270f8a80.png",
-      "skill_id": "utilidad/angelic_shelter",
+      "skill_id": "utilidad/restore_hp",
       "category": "utilidad",
-      "confidence": 0.531,
+      "confidence": 0.994,
       "source": "matched"
     },
     "8889a6261b1b1582": {
@@ -585,7 +585,7 @@
       "file": "808e9a3b23a78d80.png",
       "skill_id": "utilidad/strength_blood",
       "category": "utilidad",
-      "confidence": 0.606,
+      "confidence": 0.607,
       "source": "matched"
     },
     "b03c2d333333518e": {
@@ -634,7 +634,7 @@
       "file": "94130d170f49338e.png",
       "skill_id": "dano/wounded_warrior",
       "category": "dano",
-      "confidence": 0.772,
+      "confidence": 0.778,
       "source": "matched"
     },
     "80396d518bb62ca0": {
@@ -690,7 +690,7 @@
       "file": "809292361b130582.png",
       "skill_id": "dano/frost_meteor_potion",
       "category": "dano",
-      "confidence": 0.543,
+      "confidence": 0.545,
       "source": "matched"
     },
     "a03a3a2f2b2f2f86": {
@@ -718,14 +718,14 @@
       "file": "686e0b07070f8e88.png",
       "skill_id": "dano/ice_spike_sprite",
       "category": "dano",
-      "confidence": 0.738,
+      "confidence": 0.746,
       "source": "matched"
     },
     "808497232b8f8382": {
       "file": "808497232b8f8382.png",
       "skill_id": "utilidad/fountain_of_life",
       "category": "utilidad",
-      "confidence": 0.83,
+      "confidence": 0.833,
       "source": "matched"
     },
     "a00c86878fbd6180": {
@@ -760,7 +760,7 @@
       "file": "8083a7361b138582.png",
       "skill_id": "dano/toxic_meteor_potion",
       "category": "dano",
-      "confidence": 0.555,
+      "confidence": 0.556,
       "source": "matched"
     },
     "82c6556923278ea0": {
@@ -830,21 +830,21 @@
       "file": "8617070fcc8e9696.png",
       "skill_id": "dano/plant_guardian",
       "category": "dano",
-      "confidence": 0.763,
+      "confidence": 0.765,
       "source": "matched"
     },
     "9819332a1b1e1e90": {
       "file": "9819332a1b1e1e90.png",
-      "skill_id": "dano/perilous_fervor",
+      "skill_id": "dano/atk_increase",
       "category": "dano",
-      "confidence": 0.536,
+      "confidence": 0.542,
       "source": "matched"
     },
     "80961717164d3b80": {
       "file": "80961717164d3b80.png",
       "skill_id": "dano/ice_spike_sprite",
       "category": "dano",
-      "confidence": 0.523,
+      "confidence": 0.525,
       "source": "matched"
     },
     "96135d1f0f41b38c": {
@@ -863,10 +863,10 @@
     },
     "8083b14313b58380": {
       "file": "8083b14313b58380.png",
-      "skill_id": "dano/energy_rings",
-      "category": "dano",
-      "confidence": 0.362,
-      "source": "labeled"
+      "skill_id": "catalog/8083b14313b58380",
+      "category": "unknown",
+      "confidence": 0.363,
+      "source": "unlabeled"
     },
     "8e8e0f4dcc0f8e8e": {
       "file": "8e8e0f4dcc0f8e8e.png",
@@ -940,10 +940,10 @@
     },
     "808c0faf2f0f338c": {
       "file": "808c0faf2f0f338c.png",
-      "skill_id": "dano/stand_strong",
-      "category": "dano",
-      "confidence": 0.48,
-      "source": "labeled"
+      "skill_id": "catalog/808c0faf2f0f338c",
+      "category": "unknown",
+      "confidence": 0.481,
+      "source": "unlabeled"
     },
     "f03c2d333333518e": {
       "file": "f03c2d333333518e.png",
@@ -963,14 +963,14 @@
       "file": "8327168e8c8eae88.png",
       "skill_id": "catalog/8327168e8c8eae88",
       "category": "unknown",
-      "confidence": 0.459,
+      "confidence": 0.46,
       "source": "unlabeled"
     },
     "96960f0b4d279696": {
       "file": "96960f0b4d279696.png",
       "skill_id": "dano/super_freeze",
       "category": "dano",
-      "confidence": 0.613,
+      "confidence": 0.615,
       "source": "matched"
     },
     "90981c181e1e9680": {
@@ -1019,28 +1019,28 @@
       "file": "8094177107878380.png",
       "skill_id": "utilidad/strength_blood",
       "category": "utilidad",
-      "confidence": 0.536,
+      "confidence": 0.542,
       "source": "matched"
     },
     "9019332a1b1e1e90": {
       "file": "9019332a1b1e1e90.png",
       "skill_id": "dano/perilous_fervor",
       "category": "dano",
-      "confidence": 0.549,
+      "confidence": 0.55,
       "source": "matched"
     },
     "96962b5d553b9696": {
       "file": "96962b5d553b9696.png",
-      "skill_id": "dano/fire_strong",
-      "category": "dano",
-      "confidence": 0.456,
-      "source": "labeled"
+      "skill_id": "catalog/96962b5d553b9696",
+      "category": "unknown",
+      "confidence": 0.459,
+      "source": "unlabeled"
     },
     "80aa4d552f8e8e80": {
       "file": "80aa4d552f8e8e80.png",
       "skill_id": "catalog/80aa4d552f8e8e80",
       "category": "unknown",
-      "confidence": 0.469,
+      "confidence": 0.471,
       "source": "unlabeled"
     },
     "8080134b37b38080": {
@@ -1180,7 +1180,7 @@
       "file": "80848d290f1b9380.png",
       "skill_id": "utilidad/fountain_of_life",
       "category": "utilidad",
-      "confidence": 0.607,
+      "confidence": 0.608,
       "source": "matched"
     },
     "808e9a3367058982": {
@@ -1285,14 +1285,14 @@
       "file": "282e357171338e88.png",
       "skill_id": "dano/flame_sprite",
       "category": "dano",
-      "confidence": 0.996,
+      "confidence": 0.998,
       "source": "matched"
     },
     "808e9a3b23a78f80": {
       "file": "808e9a3b23a78f80.png",
       "skill_id": "utilidad/strength_blood",
       "category": "utilidad",
-      "confidence": 0.604,
+      "confidence": 0.605,
       "source": "matched"
     },
     "70383c170f4f0f8e": {
@@ -1301,6 +1301,650 @@
       "category": "dano",
       "confidence": 0.992,
       "source": "matched"
+    },
+    "808e1a3367058982": {
+      "file": "808e1a3367058982.png",
+      "skill_id": "dano/strike_boost",
+      "category": "dano",
+      "confidence": 0.996,
+      "source": "matched"
+    },
+    "809392361b130582": {
+      "file": "809392361b130582.png",
+      "skill_id": "dano/toxic_meteor_potion",
+      "category": "dano",
+      "confidence": 0.541,
+      "source": "matched"
+    },
+    "a86e4b27070f8e88": {
+      "file": "a86e4b27070f8e88.png",
+      "skill_id": "utilidad/perilous_recovery",
+      "category": "utilidad",
+      "confidence": 0.592,
+      "source": "matched"
+    },
+    "e80f357171338e88": {
+      "file": "e80f357171338e88.png",
+      "skill_id": "catalog/e80f357171338e88",
+      "category": "unknown",
+      "confidence": 0.392,
+      "source": "unlabeled"
+    },
+    "86868d1926435583": {
+      "file": "86868d1926435583.png",
+      "skill_id": "catalog/86868d1926435583",
+      "category": "unknown",
+      "confidence": 0.381,
+      "source": "unlabeled"
+    },
+    "80362707070f4d80": {
+      "file": "80362707070f4d80.png",
+      "skill_id": "utilidad/perilous_recovery",
+      "category": "utilidad",
+      "confidence": 0.996,
+      "source": "matched"
+    },
+    "6e4b0b0707070f0e": {
+      "file": "6e4b0b0707070f0e.png",
+      "skill_id": "catalog/6e4b0b0707070f0e",
+      "category": "unknown",
+      "confidence": 0.406,
+      "source": "unlabeled"
+    },
+    "17611d9e8f4d731f": {
+      "file": "17611d9e8f4d731f.png",
+      "skill_id": "catalog/17611d9e8f4d731f",
+      "category": "unknown",
+      "confidence": 0.469,
+      "source": "unlabeled"
+    },
+    "4e2b0b0707070f0e": {
+      "file": "4e2b0b0707070f0e.png",
+      "skill_id": "utilidad/angelic_shelter",
+      "category": "utilidad",
+      "confidence": 0.558,
+      "source": "matched"
+    },
+    "9e0e2f27260e0c1e": {
+      "file": "9e0e2f27260e0c1e.png",
+      "skill_id": "dano/plant_guardian",
+      "category": "dano",
+      "confidence": 0.722,
+      "source": "matched"
+    },
+    "80382d2d33333355": {
+      "file": "80382d2d33333355.png",
+      "skill_id": "catalog/80382d2d33333355",
+      "category": "unknown",
+      "confidence": 0.293,
+      "source": "unlabeled"
+    },
+    "800e0d4d4b351307": {
+      "file": "800e0d4d4b351307.png",
+      "skill_id": "catalog/800e0d4d4b351307",
+      "category": "unknown",
+      "confidence": 0.379,
+      "source": "unlabeled"
+    },
+    "808b8d07078d8b80": {
+      "file": "808b8d07078d8b80.png",
+      "skill_id": "catalog/808b8d07078d8b80",
+      "category": "unknown",
+      "confidence": 0.478,
+      "source": "unlabeled"
+    },
+    "8e8e0f4d4d0f8e8e": {
+      "file": "8e8e0f4d4d0f8e8e.png",
+      "skill_id": "catalog/8e8e0f4d4d0f8e8e",
+      "category": "unknown",
+      "confidence": 0.417,
+      "source": "unlabeled"
+    },
+    "8084065f4f0d8982": {
+      "file": "8084065f4f0d8982.png",
+      "skill_id": "utilidad/fountain_of_life",
+      "category": "utilidad",
+      "confidence": 0.627,
+      "source": "matched"
+    },
+    "888e8e0f373d178c": {
+      "file": "888e8e0f373d178c.png",
+      "skill_id": "catalog/888e8e0f373d178c",
+      "category": "unknown",
+      "confidence": 0.445,
+      "source": "unlabeled"
+    },
+    "8c966b474d4d0b8c": {
+      "file": "8c966b474d4d0b8c.png",
+      "skill_id": "utilidad/angelic_shelter",
+      "category": "utilidad",
+      "confidence": 0.684,
+      "source": "matched"
+    },
+    "8086864d2b4e1880": {
+      "file": "8086864d2b4e1880.png",
+      "skill_id": "catalog/8086864d2b4e1880",
+      "category": "unknown",
+      "confidence": 0.4,
+      "source": "unlabeled"
+    },
+    "808186872e3c3880": {
+      "file": "808186872e3c3880.png",
+      "skill_id": "catalog/808186872e3c3880",
+      "category": "unknown",
+      "confidence": 0.401,
+      "source": "unlabeled"
+    },
+    "a0b199339a635582": {
+      "file": "a0b199339a635582.png",
+      "skill_id": "dano/blitz_strike",
+      "category": "dano",
+      "confidence": 0.991,
+      "source": "matched"
+    },
+    "804d692b0b0f8e80": {
+      "file": "804d692b0b0f8e80.png",
+      "skill_id": "catalog/804d692b0b0f8e80",
+      "category": "unknown",
+      "confidence": 0.487,
+      "source": "unlabeled"
+    },
+    "8082869e8e551b80": {
+      "file": "8082869e8e551b80.png",
+      "skill_id": "catalog/8082869e8e551b80",
+      "category": "unknown",
+      "confidence": 0.453,
+      "source": "unlabeled"
+    },
+    "80848531331f9880": {
+      "file": "80848531331f9880.png",
+      "skill_id": "dano/vampiric_circle",
+      "category": "dano",
+      "confidence": 0.616,
+      "source": "matched"
+    },
+    "80a0303d3fada180": {
+      "file": "80a0303d3fada180.png",
+      "skill_id": "dano/fiery_path",
+      "category": "dano",
+      "confidence": 0.991,
+      "source": "matched"
+    },
+    "80362f07070f4d80": {
+      "file": "80362f07070f4d80.png",
+      "skill_id": "utilidad/perilous_recovery",
+      "category": "utilidad",
+      "confidence": 0.998,
+      "source": "matched"
+    },
+    "8c96070f0f4f8e8c": {
+      "file": "8c96070f0f4f8e8c.png",
+      "skill_id": "utilidad/angelic_shelter",
+      "category": "utilidad",
+      "confidence": 0.993,
+      "source": "matched"
+    },
+    "808ba6261b1b1582": {
+      "file": "808ba6261b1b1582.png",
+      "skill_id": "dano/toxic_meteor_potion",
+      "category": "dano",
+      "confidence": 0.997,
+      "source": "matched"
+    },
+    "808607230f8d8980": {
+      "file": "808607230f8d8980.png",
+      "skill_id": "utilidad/fountain_of_life",
+      "category": "utilidad",
+      "confidence": 0.993,
+      "source": "matched"
+    },
+    "802695651e3a3380": {
+      "file": "802695651e3a3380.png",
+      "skill_id": "dano/vampiric_circle",
+      "category": "dano",
+      "confidence": 0.608,
+      "source": "matched"
+    },
+    "90981c081e1e9680": {
+      "file": "90981c081e1e9680.png",
+      "skill_id": "dano/atk_increase",
+      "category": "dano",
+      "confidence": 0.997,
+      "source": "matched"
+    },
+    "80a0303d1fada180": {
+      "file": "80a0303d1fada180.png",
+      "skill_id": "dano/fiery_path",
+      "category": "dano",
+      "confidence": 0.998,
+      "source": "matched"
+    },
+    "a00c86878fbd2180": {
+      "file": "a00c86878fbd2180.png",
+      "skill_id": "dano/bolt",
+      "category": "dano",
+      "confidence": 0.996,
+      "source": "matched"
+    },
+    "8327168e8c8e8e88": {
+      "file": "8327168e8c8e8e88.png",
+      "skill_id": "catalog/8327168e8c8e8e88",
+      "category": "unknown",
+      "confidence": 0.46,
+      "source": "unlabeled"
+    },
+    "a88e1b3b2725898a": {
+      "file": "a88e1b3b2725898a.png",
+      "skill_id": "dano/strike_boost",
+      "category": "dano",
+      "confidence": 0.615,
+      "source": "matched"
+    },
+    "86868d1927431583": {
+      "file": "86868d1927431583.png",
+      "skill_id": "catalog/86868d1927431583",
+      "category": "unknown",
+      "confidence": 0.38,
+      "source": "unlabeled"
+    },
+    "803627070f0f4d80": {
+      "file": "803627070f0f4d80.png",
+      "skill_id": "utilidad/perilous_recovery",
+      "category": "utilidad",
+      "confidence": 0.996,
+      "source": "matched"
+    },
+    "0000000000020200": {
+      "file": "0000000000020200.png",
+      "skill_id": "catalog/0000000000020200",
+      "category": "unknown",
+      "confidence": 0.081,
+      "source": "unlabeled"
+    },
+    "0000000000004a6a": {
+      "file": "0000000000004a6a.png",
+      "skill_id": "catalog/0000000000004a6a",
+      "category": "unknown",
+      "confidence": 0.067,
+      "source": "unlabeled"
+    },
+    "010101010181e121": {
+      "file": "010101010181e121.png",
+      "skill_id": "catalog/010101010181e121",
+      "category": "unknown",
+      "confidence": 0.081,
+      "source": "unlabeled"
+    },
+    "90981c1c1e1e9682": {
+      "file": "90981c1c1e1e9682.png",
+      "skill_id": "dano/atk_increase",
+      "category": "dano",
+      "confidence": 0.996,
+      "source": "matched"
+    },
+    "888e1f1f2735bf8c": {
+      "file": "888e1f1f2735bf8c.png",
+      "skill_id": "atk_speed/soul_of_swiftness",
+      "category": "atk_speed",
+      "confidence": 0.993,
+      "source": "matched"
+    },
+    "c060309c268781c0": {
+      "file": "c060309c268781c0.png",
+      "skill_id": "dano/vine_pursuit",
+      "category": "dano",
+      "confidence": 0.992,
+      "source": "matched"
+    },
+    "808607330f8d8980": {
+      "file": "808607330f8d8980.png",
+      "skill_id": "utilidad/fountain_of_life",
+      "category": "utilidad",
+      "confidence": 0.992,
+      "source": "matched"
+    },
+    "323353361f191311": {
+      "file": "323353361f191311.png",
+      "skill_id": "catalog/323353361f191311",
+      "category": "unknown",
+      "confidence": 0.288,
+      "source": "unlabeled"
+    },
+    "0c0c0c08080c0c0c": {
+      "file": "0c0c0c08080c0c0c.png",
+      "skill_id": "dano/plant_guardian",
+      "category": "dano",
+      "confidence": 0.502,
+      "source": "matched"
+    },
+    "1159332a171b1a0e": {
+      "file": "1159332a171b1a0e.png",
+      "skill_id": "catalog/1159332a171b1a0e",
+      "category": "unknown",
+      "confidence": 0.331,
+      "source": "unlabeled"
+    },
+    "80849723238f8382": {
+      "file": "80849723238f8382.png",
+      "skill_id": "utilidad/fountain_of_life",
+      "category": "utilidad",
+      "confidence": 0.833,
+      "source": "matched"
+    },
+    "809b8e07072b9b80": {
+      "file": "809b8e07072b9b80.png",
+      "skill_id": "dano/freeze",
+      "category": "dano",
+      "confidence": 0.994,
+      "source": "matched"
+    },
+    "b83e2f272333268e": {
+      "file": "b83e2f272333268e.png",
+      "skill_id": "catalog/b83e2f272333268e",
+      "category": "unknown",
+      "confidence": 0.497,
+      "source": "unlabeled"
+    },
+    "8c07070f0f0f8e8c": {
+      "file": "8c07070f0f0f8e8c.png",
+      "skill_id": "utilidad/angelic_shelter",
+      "category": "utilidad",
+      "confidence": 0.993,
+      "source": "matched"
+    },
+    "030d314343330503": {
+      "file": "030d314343330503.png",
+      "skill_id": "catalog/030d314343330503",
+      "category": "unknown",
+      "confidence": 0.347,
+      "source": "unlabeled"
+    },
+    "2c0f35717161330e": {
+      "file": "2c0f35717161330e.png",
+      "skill_id": "dano/laser_sprite",
+      "category": "dano",
+      "confidence": 0.599,
+      "source": "matched"
+    },
+    "3717454f0c0c1e16": {
+      "file": "3717454f0c0c1e16.png",
+      "skill_id": "dano/plant_guardian",
+      "category": "dano",
+      "confidence": 0.714,
+      "source": "matched"
+    },
+    "8617470fcc8e96b6": {
+      "file": "8617470fcc8e96b6.png",
+      "skill_id": "dano/plant_guardian",
+      "category": "dano",
+      "confidence": 0.763,
+      "source": "matched"
+    },
+    "0d1b3f5f2735352e": {
+      "file": "0d1b3f5f2735352e.png",
+      "skill_id": "catalog/0d1b3f5f2735352e",
+      "category": "unknown",
+      "confidence": 0.302,
+      "source": "unlabeled"
+    },
+    "4161b59f67070301": {
+      "file": "4161b59f67070301.png",
+      "skill_id": "catalog/4161b59f67070301",
+      "category": "unknown",
+      "confidence": 0.256,
+      "source": "unlabeled"
+    },
+    "090dcc69692b2b0d": {
+      "file": "090dcc69692b2b0d.png",
+      "skill_id": "dano/diagonal_arrow",
+      "category": "dano",
+      "confidence": 0.981,
+      "source": "matched"
+    },
+    "484e0b07070f8e88": {
+      "file": "484e0b07070f8e88.png",
+      "skill_id": "utilidad/restore_hp",
+      "category": "utilidad",
+      "confidence": 0.633,
+      "source": "matched"
+    },
+    "809392361b131583": {
+      "file": "809392361b131583.png",
+      "skill_id": "dano/frost_meteor_potion",
+      "category": "dano",
+      "confidence": 0.559,
+      "source": "matched"
+    },
+    "09191c191d13273d": {
+      "file": "09191c191d13273d.png",
+      "skill_id": "catalog/09191c191d13273d",
+      "category": "unknown",
+      "confidence": 0.383,
+      "source": "unlabeled"
+    },
+    "07231f0f0d0f2f0f": {
+      "file": "07231f0f0d0f2f0f.png",
+      "skill_id": "catalog/07231f0f0d0f2f0f",
+      "category": "unknown",
+      "confidence": 0.461,
+      "source": "unlabeled"
+    },
+    "1d070f2b27070f1f": {
+      "file": "1d070f2b27070f1f.png",
+      "skill_id": "utilidad/angelic_shelter",
+      "category": "utilidad",
+      "confidence": 0.531,
+      "source": "matched"
+    },
+    "90960f0f270f8b80": {
+      "file": "90960f0f270f8b80.png",
+      "skill_id": "utilidad/restore_hp",
+      "category": "utilidad",
+      "confidence": 0.99,
+      "source": "matched"
+    },
+    "888c172b0f4d398e": {
+      "file": "888c172b0f4d398e.png",
+      "skill_id": "catalog/888c172b0f4d398e",
+      "category": "unknown",
+      "confidence": 0.446,
+      "source": "unlabeled"
+    },
+    "8c86195d4d27978c": {
+      "file": "8c86195d4d27978c.png",
+      "skill_id": "utilidad/lucky_cracker",
+      "category": "utilidad",
+      "confidence": 0.566,
+      "source": "matched"
+    },
+    "8086860e36318e88": {
+      "file": "8086860e36318e88.png",
+      "skill_id": "utilidad/tracking_eye",
+      "category": "utilidad",
+      "confidence": 0.997,
+      "source": "matched"
+    },
+    "90983b230f2b8e80": {
+      "file": "90983b230f2b8e80.png",
+      "skill_id": "utilidad/perilous_recovery",
+      "category": "utilidad",
+      "confidence": 0.604,
+      "source": "matched"
+    },
+    "fcfcf4f4f5f9fdfc": {
+      "file": "fcfcf4f4f5f9fdfc.png",
+      "skill_id": "catalog/fcfcf4f4f5f9fdfc",
+      "category": "unknown",
+      "confidence": 0.086,
+      "source": "unlabeled"
+    },
+    "1f0f0f07070f171f": {
+      "file": "1f0f0f07070f171f.png",
+      "skill_id": "dano/plant_guardian",
+      "category": "dano",
+      "confidence": 0.553,
+      "source": "matched"
+    },
+    "80c0c04040c00000": {
+      "file": "80c0c04040c00000.png",
+      "skill_id": "catalog/80c0c04040c00000",
+      "category": "unknown",
+      "confidence": 0.169,
+      "source": "unlabeled"
+    },
+    "828e9e9e9e8e8e82": {
+      "file": "828e9e9e9e8e8e82.png",
+      "skill_id": "movilidad/wind_blessing",
+      "category": "movilidad",
+      "confidence": 0.981,
+      "source": "matched"
+    },
+    "8696aaaeaa9a9682": {
+      "file": "8696aaaeaa9a9682.png",
+      "skill_id": "catalog/8696aaaeaa9a9682",
+      "category": "unknown",
+      "confidence": 0.449,
+      "source": "unlabeled"
+    },
+    "868acc692baa8e82": {
+      "file": "868acc692baa8e82.png",
+      "skill_id": "dano/diagonal_arrow",
+      "category": "dano",
+      "confidence": 0.991,
+      "source": "matched"
+    },
+    "a0676b9563ce9890": {
+      "file": "a0676b9563ce9890.png",
+      "skill_id": "catalog/a0676b9563ce9890",
+      "category": "unknown",
+      "confidence": 0.305,
+      "source": "unlabeled"
+    },
+    "8003136e5c1f0503": {
+      "file": "8003136e5c1f0503.png",
+      "skill_id": "catalog/8003136e5c1f0503",
+      "category": "unknown",
+      "confidence": 0.345,
+      "source": "unlabeled"
+    },
+    "8032333332323232": {
+      "file": "8032333332323232.png",
+      "skill_id": "catalog/8032333332323232",
+      "category": "unknown",
+      "confidence": 0.348,
+      "source": "unlabeled"
+    },
+    "8013090d07070d09": {
+      "file": "8013090d07070d09.png",
+      "skill_id": "catalog/8013090d07070d09",
+      "category": "unknown",
+      "confidence": 0.419,
+      "source": "unlabeled"
+    },
+    "808383830b179582": {
+      "file": "808383830b179582.png",
+      "skill_id": "atk_speed/fairy_of_the_wind",
+      "category": "atk_speed",
+      "confidence": 0.558,
+      "source": "matched"
+    },
+    "80ae8f07078f8e80": {
+      "file": "80ae8f07078f8e80.png",
+      "skill_id": "dano/perilous_fervor",
+      "category": "dano",
+      "confidence": 0.555,
+      "source": "matched"
+    },
+    "88991d199db32cb0": {
+      "file": "88991d199db32cb0.png",
+      "skill_id": "dano/riposte_strike",
+      "category": "dano",
+      "confidence": 0.983,
+      "source": "matched"
+    },
+    "8696070d0f9e8e96": {
+      "file": "8696070d0f9e8e96.png",
+      "skill_id": "catalog/8696070d0f9e8e96",
+      "category": "unknown",
+      "confidence": 0.466,
+      "source": "unlabeled"
+    },
+    "880a374635121a88": {
+      "file": "880a374635121a88.png",
+      "skill_id": "catalog/880a374635121a88",
+      "category": "unknown",
+      "confidence": 0.323,
+      "source": "unlabeled"
+    },
+    "b03c2d333333558e": {
+      "file": "b03c2d333333558e.png",
+      "skill_id": "catalog/b03c2d333333558e",
+      "category": "unknown",
+      "confidence": 0.414,
+      "source": "unlabeled"
+    },
+    "a84e0b3d0f2e8a88": {
+      "file": "a84e0b3d0f2e8a88.png",
+      "skill_id": "dano/ice_spike_sprite",
+      "category": "dano",
+      "confidence": 0.572,
+      "source": "matched"
+    },
+    "800e07474d597117": {
+      "file": "800e07474d597117.png",
+      "skill_id": "catalog/800e07474d597117",
+      "category": "unknown",
+      "confidence": 0.448,
+      "source": "unlabeled"
+    },
+    "8069690f0e0c0c0c": {
+      "file": "8069690f0e0c0c0c.png",
+      "skill_id": "dano/split_shot",
+      "category": "dano",
+      "confidence": 0.721,
+      "source": "matched"
+    },
+    "8023263e302c2680": {
+      "file": "8023263e302c2680.png",
+      "skill_id": "dano/bounce_arrow",
+      "category": "dano",
+      "confidence": 0.993,
+      "source": "matched"
+    },
+    "90952d1d1d972cb8": {
+      "file": "90952d1d1d972cb8.png",
+      "skill_id": "dano/riposte_strike",
+      "category": "dano",
+      "confidence": 0.709,
+      "source": "matched"
+    },
+    "a02e0b3d0f2e8e88": {
+      "file": "a02e0b3d0f2e8e88.png",
+      "skill_id": "dano/ice_spike_sprite",
+      "category": "dano",
+      "confidence": 0.571,
+      "source": "matched"
+    },
+    "809e1717164d3b84": {
+      "file": "809e1717164d3b84.png",
+      "skill_id": "dano/ice_spike_sprite",
+      "category": "dano",
+      "confidence": 0.526,
+      "source": "matched"
+    },
+    "a02e0b3d0b2e8e88": {
+      "file": "a02e0b3d0b2e8e88.png",
+      "skill_id": "dano/ice_spike_sprite",
+      "category": "dano",
+      "confidence": 0.569,
+      "source": "matched"
+    },
+    "60351d9b47638782": {
+      "file": "60351d9b47638782.png",
+      "skill_id": "catalog/60351d9b47638782",
+      "category": "unknown",
+      "confidence": 0.367,
+      "source": "unlabeled"
     }
   }
 }
