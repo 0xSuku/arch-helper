@@ -13,6 +13,7 @@ from .skill_catalog import (
     CATALOG_DIR,
     find_catalog_fp,
     list_catalog_entries_full,
+    list_pending_entries,
     update_catalog_entry,
 )
 from .skills import SKILLS_DIR, SkillPicker
@@ -195,6 +196,18 @@ def _is_legacy_active(skill_id: str) -> bool:
     return skill_id.startswith("active/")
 
 
+def _assert_unique_skill_id(new_id: str, old_id: str, catalog_fp: str | None) -> None:
+    category, name = new_id.split("/", 1)
+    template_path = SKILLS_DIR / category / f"{name}.png"
+    if template_path.exists() and old_id != new_id:
+        raise ValueError(f"Ya existe skill duplicada: {new_id}")
+    for fp, skill_id, _category, _source, _conf in list_catalog_entries_full():
+        if fp == catalog_fp:
+            continue
+        if skill_id == new_id:
+            raise ValueError(f"Ya existe skill duplicada en catálogo: {new_id}")
+
+
 def update_skill_meta(
     *,
     skill_id: str,
@@ -216,6 +229,7 @@ def update_skill_meta(
         raise ValueError("Entradas active/* fueron removidas; renombrá como skill normal")
 
     fp = catalog_fp or find_catalog_fp(old_id)
+    _assert_unique_skill_id(new_id, old_id, fp)
     if fp or old_id.startswith("catalog/"):
         if not fp:
             fp = old_id.removeprefix("catalog/")
@@ -286,6 +300,32 @@ def list_skill_rows(config: dict[str, Any] | None = None) -> list[dict[str, Any]
         )
 
     rows.sort(key=lambda r: (-int(r["score"]), str(r["id"])))
+    return rows
+
+
+def list_pending_skill_rows(config: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    cfg = config or load_skills()
+    picker = SkillPicker(cfg)
+    rows: list[dict[str, Any]] = []
+    for entry in list_pending_entries():
+        category = str(entry.get("category", "unknown"))
+        skill_id = str(entry.get("id", f"catalog/{entry['fp']}"))
+        rows.append({
+            "id": skill_id,
+            "name": skill_id.split("/", 1)[1] if "/" in skill_id else skill_id,
+            "category": category,
+            "group": "",
+            "score": picker.scores.get(skill_id, 0),
+            "source": entry.get("source", "unlabeled"),
+            "catalog_fp": entry["fp"],
+            "entry_type": "pending_catalog",
+            "image_url": f"/api/skills/catalog-image?fp={entry['fp']}",
+            "seen_count": int(entry.get("seen_count", 1)),
+            "best_confidence": float(entry.get("best_confidence", entry.get("confidence", 0.0))),
+            "last_confidence": float(entry.get("last_confidence", entry.get("confidence", 0.0))),
+            "last_seen_at": entry.get("last_seen_at", ""),
+            "source_context": entry.get("source_context", ""),
+        })
     return rows
 
 

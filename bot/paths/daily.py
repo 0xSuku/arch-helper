@@ -165,14 +165,12 @@ class DailyPath:
     def _skip_lobby_for_abyssal(self) -> bool:
         return (
             self._is_abyssal_tide_popup()
-            or self._is_abyssal_combat_active()
             or self._is_events_hub()
         )
 
     def _skip_lobby_for_shackled(self) -> bool:
         return (
             self._is_shackled_jungle_popup()
-            or self._is_shackled_combat_active()
             or self._is_events_hub()
         )
 
@@ -594,7 +592,9 @@ class DailyPath:
         self._opt("menu", "close_x", settle=0.6, money_check=False)
 
     def _is_shackled_combat_active(self) -> bool:
-        return self.ctx.current_screen() in SHACKLED_COMBAT
+        # Combat screen anchors are shared across dungeon modes; without popup evidence,
+        # resuming a named dungeon can credit the wrong claim.
+        return False
 
     def _open_shackled_jungle_popup(self) -> bool:
         if self._is_shackled_jungle_popup():
@@ -783,7 +783,9 @@ class DailyPath:
         return completed
 
     def _is_abyssal_combat_active(self) -> bool:
-        return self.ctx.current_screen() in DUNGEON_COMBAT
+        # Combat screen anchors are shared across dungeon modes; without popup evidence,
+        # resuming a named dungeon can credit the wrong claim.
+        return False
 
     def _open_abyssal_tide_popup(self) -> bool:
         if self._is_abyssal_tide_popup():
@@ -1019,7 +1021,10 @@ class DailyPath:
         done = self._run_arena_fights("arena", fights=self.arena_fights)
         log.info("  Arena: %d/%d peleas", done, self.arena_fights)
         self._leave_arena_to_campaign()
-        self._finish_claim("arena")
+        if done > 0:
+            self._finish_claim("arena")
+        else:
+            log.warning("Arena: 0 peleas completadas; no marco como verificado")
 
     def _is_arena_opponents_popup(self, screen=None) -> bool:
         img = screen if screen is not None else self.ctx.device.screenshot()
@@ -1149,7 +1154,7 @@ class DailyPath:
             sleep(0.35)
         return False
 
-    def _arena_pick_opponent_once(self) -> bool:
+    def _arena_pick_opponent_once(self, banner_key: str = "arena_banner") -> bool:
         target = ARENA_OPPONENT_INDEX
         for refresh_i in range(ARENA_REFRESH_BEFORE_FALLBACK):
             power = self._read_arena_opponent_power(ARENA_OPPONENT_INDEX)
@@ -1180,7 +1185,7 @@ class DailyPath:
                 return False
             if self._wait_arena_opponents(timeout=25):
                 return True
-            return self._open_arena_rivals_popup("arena_banner")
+            return self._open_arena_rivals_popup(banner_key)
 
         if not self._wait_arena_victory_and_confirm():
             log.warning("  no se cerró victoria arena")
@@ -1189,7 +1194,7 @@ class DailyPath:
 
         if not self._wait_arena_opponents(timeout=30):
             log.warning("  no volvió popup rivales tras confirm")
-            if not self._open_arena_rivals_popup("arena_banner"):
+            if not self._open_arena_rivals_popup(banner_key):
                 return False
         return True
 
@@ -1209,7 +1214,7 @@ class DailyPath:
             if not self._is_arena_opponents_popup():
                 if not self._open_arena_rivals_popup(banner):
                     break
-            if self._arena_pick_opponent_once():
+            if self._arena_pick_opponent_once(banner):
                 completed += 1
             else:
                 break

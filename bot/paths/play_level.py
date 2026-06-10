@@ -689,7 +689,11 @@ class PlayLevelPath:
             fallback = self.ctx.coords.regions("skill_select", "cards")
         except (KeyError, ValueError):
             fallback = None
-        chosen = self.picker.choose(screen, fallback_regions=fallback)
+        chosen = self.picker.choose(
+            screen,
+            fallback_regions=fallback,
+            context="farm" if self.until_no_energy else "play",
+        )
         log.info(
             "Eligiendo carta %d (%s score=%d) -> (%d,%d)",
             chosen.index,

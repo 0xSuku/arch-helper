@@ -192,7 +192,7 @@ function buildLabeledSelect(values, labels, selected, { allowEmpty = false, empt
 }
 
 async function saveSkillMeta(skill) {
-  const row = document.querySelector(`tr[data-skill-id="${CSS.escape(skill.id)}"]`);
+  const row = document.querySelector(`[data-skill-id="${CSS.escape(skill.id)}"]`);
   if (!row) return;
   const name = row.querySelector(".name-input").value.trim();
   const category = row.querySelector(".category-select").value;
@@ -213,6 +213,73 @@ async function saveSkillMeta(skill) {
   await loadSkills();
 }
 
+function renderPendingSkills(pending) {
+  const root = $("#pending-skills");
+  root.innerHTML = "";
+  if (!pending.length) {
+    const empty = document.createElement("p");
+    empty.className = "hint";
+    empty.textContent = "No hay unknowns pendientes para etiquetar.";
+    root.appendChild(empty);
+    return;
+  }
+
+  const title = document.createElement("h3");
+  title.textContent = `Unknowns pendientes (${pending.length})`;
+  root.appendChild(title);
+
+  const grid = document.createElement("div");
+  grid.className = "pending-grid";
+  for (const sk of pending) {
+    const card = document.createElement("article");
+    card.className = "pending-skill-card";
+    card.dataset.skillId = sk.id;
+
+    const img = document.createElement("img");
+    img.className = "pending-skill-img";
+    img.src = sk.image_url;
+    img.alt = sk.id;
+
+    const meta = document.createElement("div");
+    meta.className = "pending-skill-meta";
+
+    const stats = document.createElement("div");
+    stats.className = "pending-skill-stats";
+    stats.textContent = `Visto ${sk.seen_count}x · conf ${Number(sk.best_confidence || 0).toFixed(2)} · ${sk.source_context || "play"}`;
+
+    const nameInput = document.createElement("input");
+    nameInput.className = "meta-input name-input";
+    nameInput.placeholder = "nombre_skill";
+    nameInput.value = "";
+
+    const categorySelect = buildLabeledSelect(skillCategories, categoryLabels, "");
+    categorySelect.classList.add("category-select");
+
+    const groupSelect = buildLabeledSelect(skillGroups, groupLabels, "", {
+      allowEmpty: true,
+      emptyLabel: "Sin grupo",
+    });
+    groupSelect.classList.add("group-select");
+
+    const scoreInput = document.createElement("input");
+    scoreInput.className = "score-input";
+    scoreInput.type = "number";
+    scoreInput.min = "0";
+    scoreInput.max = "999";
+    scoreInput.value = String(sk.score || 0);
+
+    const btnSave = document.createElement("button");
+    btnSave.className = "btn btn-primary btn-xs";
+    btnSave.textContent = "Etiquetar";
+    btnSave.addEventListener("click", () => saveSkillMeta(sk).catch((e) => toast(e.message, true)));
+
+    meta.append(stats, nameInput, categorySelect, groupSelect, scoreInput, btnSave);
+    card.append(img, meta);
+    grid.appendChild(card);
+  }
+  root.appendChild(grid);
+}
+
 async function bumpSkillScore(skillId, delta) {
   const data = await api("/api/skills/bump", {
     method: "POST",
@@ -230,6 +297,7 @@ async function loadSkills() {
     skillGroups = data.groups || [];
     categoryLabels = data.category_labels || {};
     groupLabels = data.group_labels || {};
+    renderPendingSkills(data.pending || []);
     if (!data.skills.length) {
       tbody.innerHTML = '<tr><td colspan="6" class="muted-cell">Sin skills en catálogo</td></tr>';
       return;

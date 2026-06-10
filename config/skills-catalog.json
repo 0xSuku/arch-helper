@@ -747,7 +747,14 @@
       "skill_id": "utilidad/fountain_of_life",
       "category": "utilidad",
       "confidence": 0.626,
-      "source": "matched"
+      "source": "matched",
+      "needs_label": false,
+      "first_seen_at": "2026-06-10T05:02:06",
+      "last_seen_at": "2026-06-10T05:02:06",
+      "seen_count": 1,
+      "last_confidence": 0.626,
+      "best_confidence": 0.626,
+      "source_context": "farm"
     },
     "808685311f3bba80": {
       "file": "808685311f3bba80.png",
@@ -852,7 +859,13 @@
       "skill_id": "dano/wounded_warrior",
       "category": "dano",
       "confidence": 0.997,
-      "source": "matched"
+      "source": "matched",
+      "first_seen_at": "2026-06-10T05:02:06",
+      "last_seen_at": "2026-06-10T05:02:06",
+      "seen_count": 1,
+      "last_confidence": 0.995,
+      "best_confidence": 0.997,
+      "source_context": "farm"
     },
     "802b4d552f8e8e80": {
       "file": "802b4d552f8e8e80.png",
@@ -1019,7 +1032,7 @@
       "file": "8094177107878380.png",
       "skill_id": "utilidad/strength_blood",
       "category": "utilidad",
-      "confidence": 0.542,
+      "confidence": 0.544,
       "source": "matched"
     },
     "9019332a1b1e1e90": {
@@ -1342,7 +1355,13 @@
       "skill_id": "utilidad/perilous_recovery",
       "category": "utilidad",
       "confidence": 0.996,
-      "source": "matched"
+      "source": "matched",
+      "first_seen_at": "2026-06-10T05:02:06",
+      "last_seen_at": "2026-06-10T05:02:06",
+      "seen_count": 1,
+      "last_confidence": 0.99,
+      "best_confidence": 0.996,
+      "source_context": "farm"
     },
     "6e4b0b0707070f0e": {
       "file": "6e4b0b0707070f0e.png",
@@ -1945,6 +1964,55 @@
       "category": "unknown",
       "confidence": 0.367,
       "source": "unlabeled"
+    },
+    "8084265f4f0d8982": {
+      "file": "8084265f4f0d8982.png",
+      "skill_id": "utilidad/fountain_of_life",
+      "category": "utilidad",
+      "confidence": 0.625,
+      "source": "matched"
+    },
+    "903969518bb62ca0": {
+      "file": "903969518bb62ca0.png",
+      "skill_id": "dano/instant_strike",
+      "category": "dano",
+      "confidence": 0.99,
+      "source": "matched"
+    },
+    "828655692b278ea0": {
+      "file": "828655692b278ea0.png",
+      "skill_id": "dano/piercing_arrow",
+      "category": "dano",
+      "confidence": 0.995,
+      "source": "matched"
+    },
+    "80ac8f07078f8e80": {
+      "file": "80ac8f07078f8e80.png",
+      "skill_id": "dano/perilous_fervor",
+      "category": "dano",
+      "confidence": 0.556,
+      "source": "matched"
+    },
+    "0b1f1f1f1d0f0f09": {
+      "file": "0b1f1f1f1d0f0f09.png",
+      "skill_id": "catalog/0b1f1f1f1d0f0f09",
+      "category": "unknown",
+      "confidence": 0.452,
+      "source": "unlabeled"
+    },
+    "3715470f0f0d1f37": {
+      "file": "3715470f0f0d1f37.png",
+      "skill_id": "dano/plant_guardian",
+      "category": "dano",
+      "confidence": 0.652,
+      "source": "matched"
+    },
+    "2f1731717133170f": {
+      "file": "2f1731717133170f.png",
+      "skill_id": "dano/laser_sprite",
+      "category": "dano",
+      "confidence": 0.993,
+      "source": "matched"
     }
   }
 }

@@ -120,6 +120,7 @@ class PanelHandler(BaseHTTPRequestHandler):
             from ..skill_scores import (
                 category_labels,
                 group_labels,
+                list_pending_skill_rows,
                 list_skill_rows,
                 valid_categories,
                 valid_groups,
@@ -127,11 +128,32 @@ class PanelHandler(BaseHTTPRequestHandler):
 
             return self._json(200, {
                 "skills": list_skill_rows(),
+                "pending": list_pending_skill_rows(),
                 "categories": valid_categories(),
                 "groups": valid_groups(),
                 "category_labels": category_labels(),
                 "group_labels": group_labels(),
             })
+
+        if path == "/api/skills/catalog-image":
+            from ..skill_catalog import CATALOG_DIR
+
+            qs = parse_qs(parsed.query)
+            fp = str(qs.get("fp", [""])[0])
+            if not fp or any(c not in "0123456789abcdefABCDEF" for c in fp):
+                self.send_error(400)
+                return
+            image_path = (CATALOG_DIR / f"{fp.lower()}.png").resolve()
+            if not str(image_path).startswith(str(CATALOG_DIR.resolve())) or not image_path.is_file():
+                self.send_error(404)
+                return
+            data = image_path.read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", "image/png")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+            return
 
         self.send_error(404)
 

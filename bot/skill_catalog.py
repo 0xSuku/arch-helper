@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from typing import Any
 
 import cv2
@@ -42,6 +43,7 @@ def register_card(
     skill_id: str,
     category: str,
     confidence: float,
+    context: str = "play",
 ) -> tuple[str, bool]:
     """Registra una carta en el catálogo. Devuelve (catalog_id, is_new)."""
     CATALOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -53,21 +55,72 @@ def register_card(
     if is_new:
         cv2.imwrite(str(path), card)
 
-    catalog_id = skill_id if skill_id != "unknown" else f"catalog/{fp}"
     prev = entries.get(fp, {})
+    prev_skill_id = str(prev.get("skill_id", ""))
+    prev_is_labeled = bool(
+        prev_skill_id
+        and not prev_skill_id.startswith("catalog/")
+        and prev_skill_id != "unknown"
+    )
+    catalog_id = prev_skill_id if prev_is_labeled and skill_id == "unknown" else skill_id
+    if catalog_id == "unknown":
+        catalog_id = f"catalog/{fp}"
     best_conf = float(prev.get("confidence", 0.0))
+    now = datetime.now().isoformat(timespec="seconds")
+    seen_count = int(prev.get("seen_count", 0)) + 1
+    needs_label = not prev_is_labeled and (skill_id == "unknown" or catalog_id.startswith("catalog/"))
     if is_new or confidence >= best_conf:
-        entries[fp] = {
+        meta = {
             "file": path.name,
             "skill_id": catalog_id,
             "category": category,
             "confidence": round(confidence, 3),
             "source": "matched" if skill_id != "unknown" else "unlabeled",
+            "needs_label": needs_label,
         }
-        _save_manifest(manifest)
-        if is_new:
-            log.info("Catálogo + skill nuevo: %s (%s conf=%.2f)", catalog_id, category, confidence)
+    else:
+        meta = dict(prev)
+    meta.setdefault("first_seen_at", prev.get("first_seen_at") or now)
+    meta["last_seen_at"] = now
+    meta["seen_count"] = seen_count
+    meta["last_confidence"] = round(confidence, 3)
+    meta["best_confidence"] = max(
+        float(meta.get("best_confidence", 0.0)),
+        round(confidence, 3),
+        best_conf,
+    )
+    meta["source_context"] = context
+    if needs_label:
+        meta["needs_label"] = True
+    entries[fp] = meta
+    _save_manifest(manifest)
+    if is_new:
+        log.info("Catálogo + skill nuevo: %s (%s conf=%.2f)", catalog_id, category, confidence)
     return catalog_id, is_new
+
+
+def list_pending_entries() -> list[dict[str, Any]]:
+    manifest = _load_manifest()
+    rows: list[dict[str, Any]] = []
+    for fp, meta in manifest.get("entries", {}).items():
+        if not bool(meta.get("needs_label", str(meta.get("skill_id", "")).startswith("catalog/"))):
+            continue
+        rows.append({
+            "fp": fp,
+            "id": str(meta.get("skill_id", f"catalog/{fp}")),
+            "file": str(meta.get("file", f"{fp}.png")),
+            "category": str(meta.get("category", "unknown")),
+            "source": str(meta.get("source", "unlabeled")),
+            "confidence": float(meta.get("confidence", 0.0)),
+            "last_confidence": float(meta.get("last_confidence", meta.get("confidence", 0.0))),
+            "best_confidence": float(meta.get("best_confidence", meta.get("confidence", 0.0))),
+            "seen_count": int(meta.get("seen_count", 1)),
+            "first_seen_at": str(meta.get("first_seen_at", "")),
+            "last_seen_at": str(meta.get("last_seen_at", "")),
+            "source_context": str(meta.get("source_context", "")),
+        })
+    rows.sort(key=lambda r: (-int(r["seen_count"]), str(r["last_seen_at"]), str(r["fp"])))
+    return rows
 
 
 def list_catalog_entries() -> list[tuple[str, str, str, float]]:
@@ -115,8 +168,10 @@ def update_catalog_entry(
     meta["category"] = category
     if skill_id.startswith("catalog/"):
         meta["source"] = meta.get("source", "unlabeled")
+        meta["needs_label"] = True
     else:
         meta["source"] = "labeled"
+        meta["needs_label"] = False
     entries[fp] = meta
     _save_manifest(manifest)
     log.info("Catálogo actualizado: %s -> %s [%s]", fp, skill_id, category)

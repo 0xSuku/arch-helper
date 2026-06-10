@@ -54,7 +54,7 @@
     "shop": {
       "name": "Shop (Gear Chest, Limited Offer, Top Up, Wish)",
       "in_main_loop": true,
-      "verified": true,
+      "verified": false,
       "cli": "python -m bot.cli daily shop",
       "notes": "Gear Chest puede no tener badge al terminar; Limited Offer y Top Up solo con exclamación",
       "verified_at": "2026-06-08T00:48:04"
@@ -63,7 +63,7 @@
       "name": "Events -> Dungeon -> Gold Cave (Quick Raid)",
       "tier": "trusted",
       "in_main_loop": false,
-      "verified": true,
+      "verified": false,
       "cli": "python -m bot.cli daily gold_cave",
       "notes": "QR x1 -> empty(450,1440) -> QR x2 -> empty -> QR x2 -> empty -> close_x",
       "verified_at": "2026-06-07T21:25:09"
@@ -72,7 +72,7 @@
       "name": "Events -> Dungeon -> Shackled Jungle (combate solo skills)",
       "tier": "trusted",
       "in_main_loop": false,
-      "verified": true,
+      "verified": false,
       "cli": "python -m bot.cli daily shackled_jungle",
       "notes": "Start x2 free runs; sin movimiento; elige skills por puntaje",
       "verified_at": "2026-06-08T15:56:33"
@@ -105,7 +105,7 @@
     "great_value": {
       "name": "Great Value (solo con badge)",
       "in_main_loop": true,
-      "verified": true,
+      "verified": false,
       "cli": "python -m bot.cli daily great_value",
       "verified_at": "2026-06-08T15:35:16"
     },
@@ -118,7 +118,7 @@
     "messages": {
       "name": "Messages (solo con badge)",
       "in_main_loop": true,
-      "verified": true,
+      "verified": false,
       "cli": "python -m bot.cli daily messages",
       "verified_at": "2026-06-08T04:48:12"
     },
@@ -132,7 +132,7 @@
     "hunt": {
       "name": "Hunt (Claim + Quick Hunt free + x5)",
       "in_main_loop": true,
-      "verified": true,
+      "verified": false,
       "cli": "python -m bot.cli daily hunt",
       "verified_at": "2026-06-08T17:15:46"
     },
@@ -188,5 +188,5 @@
       "cli": "python -m bot.cli daily trophy"
     }
   },
-  "period_start": "2026-06-07T21:00:00"
+  "period_start": "2026-06-08T21:00:00"
 }

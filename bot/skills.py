@@ -127,6 +127,7 @@ class SkillPicker:
         card_regions: list[vision.Region],
         *,
         catalog: bool = True,
+        context: str = "play",
     ) -> list[CardEval]:
         from .skill_catalog import register_card
 
@@ -140,7 +141,7 @@ class SkillPicker:
                 CardEval(i, skill_id, category, confidence, score, x + w // 2, y + h // 2, card)
             )
             if catalog:
-                register_card(card, skill_id=skill_id, category=category, confidence=confidence)
+                register_card(card, skill_id=skill_id, category=category, confidence=confidence, context=context)
             elif skill_id == "unknown":
                 self._save_unknown(card, i)
             log.info(
@@ -161,6 +162,7 @@ class SkillPicker:
         fallback_regions: list[vision.Region] | None = None,
         *,
         catalog: bool = True,
+        context: str = "play",
     ) -> CardEval:
         regions = self.detect_cards(screen)
         if len(regions) == 1:
@@ -175,7 +177,7 @@ class SkillPicker:
                 log.info("Detección dinámica halló %d carta(s)", len(regions))
         if not regions:
             raise ValueError("No se detectaron cartas de skill")
-        evaluations = self.evaluate(screen, regions, catalog=catalog)
+        evaluations = self.evaluate(screen, regions, catalog=catalog, context=context)
         non_avoid = [e for e in evaluations if e.category not in self.avoid]
         if not non_avoid:
             log.warning("Todas las cartas son de categoría a evitar; se elige la menos mala")
