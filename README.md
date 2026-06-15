@@ -1,53 +1,47 @@
 # Arch Helper
 
-Herramienta local para asistir tareas repetitivas en Archero 2 desde un emulador Android en Windows.
+Local Windows helper for running repeatable Archero 2 emulator routines from the command line or a small local panel.
 
-La idea es que puedas abrir el emulador, dejar la pantalla en el lobby principal y ejecutar comandos simples desde una terminal. El proyecto usa ADB para leer la pantalla y enviar taps/swipes, con reglas de seguridad para no tocar compras con dinero real.
+## Requirements
 
-## Que necesitás instalar
+- Windows 10/11
+- Python 3.12+
+- Git
+- MuMu Player 12, or LDPlayer 9
+- Archero 2 installed in the emulator
+- Emulator resolution set to vertical `900 x 1600`
 
-### 1. Python
-
-Instalá Python 3.12 o superior desde:
-
-https://www.python.org/downloads/windows/
-
-Durante la instalación marcá:
-
-- `Add python.exe to PATH`
-- `pip`
-
-Para confirmar que quedó bien:
+Install Python dependencies:
 
 ```powershell
-python --version
-pip --version
+pip install -r requirements.txt
 ```
 
-### 2. Git
+## Setup
 
-Instalá Git para Windows:
-
-https://git-scm.com/download/win
-
-Confirmá:
+Clone the repo:
 
 ```powershell
-git --version
+git clone git@github.com:0xSuku/arch-helper.git
+cd arch-helper
 ```
 
-### 3. Emulador Android
+Create and activate a virtual environment:
 
-La configuración por defecto está pensada para **MuMu Player 12**. También se puede usar LDPlayer 9.
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
 
-Recomendado para empezar:
+Copy the example environment file if your emulator path or ADB port differs:
 
-- MuMu Player 12 instalado.
-- Archero 2 instalado dentro del emulador.
-- Resolución del emulador: **900 x 1600 vertical**.
-- El juego abierto en el lobby principal.
+```powershell
+Copy-Item .env.example .env
+notepad .env
+```
 
-El archivo `.env.example` trae valores base para MuMu:
+Default MuMu values:
 
 ```env
 EMULATOR=mumu
@@ -56,352 +50,96 @@ EMULATOR_INDEX=0
 ADB_HOST=127.0.0.1
 ADB_PORT=16384
 GAME_PACKAGE=com.xq.archeroii
-SCREEN_WIDTH=1600
-SCREEN_HEIGHT=900
 ```
 
-Si tu instalación está en otra carpeta, copiá `.env.example` a `.env` y editá `EMULATOR_DIR`.
+## Quick Check
 
-```powershell
-Copy-Item .env.example .env
-notepad .env
-```
+Open the emulator, open the game, and leave it on the main lobby.
 
-## Instalación del proyecto
-
-Cloná el repositorio:
-
-```powershell
-git clone git@github.com:0xSuku/arch-helper.git
-cd arch-helper
-```
-
-Creá un entorno virtual:
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-```
-
-Si PowerShell bloquea la activación, usá:
-
-```powershell
-powershell -ExecutionPolicy Bypass -NoProfile
-.\.venv\Scripts\Activate.ps1
-```
-
-Instalá dependencias:
-
-```powershell
-pip install -r requirements.txt
-```
-
-## Primer chequeo
-
-Con el emulador abierto y el juego en el lobby, probá:
+Check emulator/ADB:
 
 ```powershell
 python -m bot.cli emulator status
-```
-
-Si ADB no conecta, probá:
-
-```powershell
 python -m bot.cli emulator reconnect
 ```
 
-Para confirmar que puede ver la pantalla:
+Check screen detection:
 
 ```powershell
-python -m bot.cli calibrate --shot prueba.png --identify
+python -m bot.cli calibrate --shot check.png --identify
 ```
 
-Eso guarda una captura en `screenshots/prueba.png` y muestra qué pantalla detectó.
+The screenshot is saved under `screenshots/`.
 
-## Correr nivel 50
+## Run Level 50 Continuously
 
-### Una cantidad fija de partidas
-
-Para correr 5 partidas del nivel 50:
-
-```powershell
-python -m bot.cli play --level 50 --games 5
-```
-
-### Consumir energía disponible
-
-Para correr nivel 50 hasta quedarse sin energía o llegar al límite de seguridad:
-
-```powershell
-python -m bot.cli farm --level 50
-```
-
-Por defecto tiene `--max-games 40`, para evitar loops accidentales.
-
-Podés cambiarlo:
-
-```powershell
-python -m bot.cli farm --level 50 --max-games 10
-```
-
-### Modo continuo
-
-Para que espere energía y vuelva a intentar:
+From the project folder:
 
 ```powershell
 python -m bot.cli farm --level 50 --forever
 ```
 
-Cuando aparece un popup para comprar energía, la herramienta lo cierra sin comprar, espera y reintenta. El tiempo default es 60 minutos.
-
-Para cambiar la espera:
+Optional wait interval:
 
 ```powershell
-python -m bot.cli farm --level 50 --forever --energy-wait 30
+python -m bot.cli farm --level 50 --forever --energy-wait 60
 ```
 
-### Movimiento durante partida
-
-Por defecto intenta mantenerse quieto y resolver selección de skills. Si querés activar esquive continuo:
-
-```powershell
-python -m bot.cli farm --level 50 --dodge
-```
-
-## Cortar una ejecución
-
-La forma más simple:
-
-```powershell
-Ctrl+C
-```
-
-También podés crear un archivo llamado `STOP` en la raíz del proyecto. La herramienta lo revisa antes de cada acción importante y se detiene.
-
-Para crearlo desde PowerShell:
+Stop with `Ctrl+C`, or create a `STOP` file in the repo root.
 
 ```powershell
 New-Item STOP -ItemType File
 ```
 
-Para limpiarlo:
+Remove it before starting again:
 
 ```powershell
 Remove-Item STOP
 ```
 
-Importante: solo puede correr un `play` o `farm` a la vez. Si ves:
+Only one `farm`/`play` run can be active at a time.
 
-```text
-Ya hay un farm/play corriendo; no inicio otro
-```
+## Local Panel
 
-significa que todavía hay una ejecución activa. Cerrá esa terminal o matá el proceso Python correspondiente.
-
-## Tareas diarias
-
-Ver lista disponible:
-
-```powershell
-python -m bot.cli daily --list
-```
-
-Correr el grupo principal:
-
-```powershell
-python -m bot.cli daily
-```
-
-Correr una tarea puntual:
-
-```powershell
-python -m bot.cli daily guild
-python -m bot.cli daily shop
-python -m bot.cli daily hunt
-```
-
-Correr varias:
-
-```powershell
-python -m bot.cli daily guild friends shop
-```
-
-Forzar una tarea aunque ya figure verificada:
-
-```powershell
-python -m bot.cli daily shop --force
-```
-
-Ver estado de checks:
-
-```powershell
-python -m bot.cli daily --status
-```
-
-Resetear checks:
-
-```powershell
-python -m bot.cli daily --reset-checks all
-```
-
-## Panel local
-
-Si preferís botones en navegador:
+Start the local panel:
 
 ```powershell
 python -m bot.cli panel
 ```
 
-Después abrí:
+Open:
 
 ```text
 http://127.0.0.1:8765
 ```
 
-Desde ahí podés lanzar tareas, ver logs y editar prioridades de skills.
+The panel exposes the common actions, status, logs, and skill priority editing.
 
-## Skills y prioridades
-
-La selección de skills usa templates y puntajes configurables. Mayor score significa mayor prioridad.
-
-Listar:
+## Useful Commands
 
 ```powershell
+python -m bot.cli daily --list
+python -m bot.cli daily --status
 python -m bot.cli skills list
-```
-
-Setear prioridad:
-
-```powershell
-python -m bot.cli skills set dano/bolt 90
-```
-
-Subir o bajar un score:
-
-```powershell
-python -m bot.cli skills bump dano/bolt 5
-python -m bot.cli skills bump dano/bolt -5
-```
-
-Escanear la pantalla actual de selección:
-
-```powershell
-python -m bot.cli skills scan
-```
-
-Durante `play` y `farm`, las cartas no identificadas se guardan en el catálogo para etiquetarlas después desde el panel.
-
-## Calibración rápida
-
-Capturar pantalla:
-
-```powershell
-python -m bot.cli calibrate --shot pantalla.png
-```
-
-Identificar pantalla actual:
-
-```powershell
 python -m bot.cli calibrate --identify
-```
-
-Enviar tap de prueba:
-
-```powershell
-python -m bot.cli calibrate --tap 450,1523
-```
-
-Recortar un template:
-
-```powershell
-python -m bot.cli calibrate --crop 200,280,500,90 --out templates/anchors/challenge_ended.png
-```
-
-Leer el piso actual del mapa campaña:
-
-```powershell
-python -m bot.cli calibrate --read-floor
-```
-
-Las coordenadas están en `config/coords.json` y usan el espacio de captura vertical `900x1600`.
-
-## Problemas comunes
-
-### ADB no conecta
-
-Probá:
-
-```powershell
-python -m bot.cli emulator reconnect
-```
-
-Si sigue fallando:
-
-- Confirmá que el emulador esté abierto.
-- Revisá `EMULATOR_DIR` en `.env`.
-- Revisá `ADB_PORT`.
-- Probá reiniciar el emulador.
-
-### La pantalla detectada no coincide
-
-Sacá una captura:
-
-```powershell
-python -m bot.cli calibrate --shot debug.png --identify
-```
-
-Abrí `screenshots/debug.png` y compará con la pantalla real. Si cambió la resolución o escala, hay que recalibrar coordenadas/templates.
-
-### Se quedó una ejecución bloqueando otra
-
-Listá procesos Python:
-
-```powershell
-wmic process where "name like '%python%'" get ProcessId,CommandLine
-```
-
-Luego cerrá el PID correcto:
-
-```powershell
-Stop-Process -Id 1234
-```
-
-### Loading infinito o emulador congelado
-
-Estado:
-
-```powershell
-python -m bot.cli emulator status
-```
-
-Reiniciar emulador y esperar lobby:
-
-```powershell
 python -m bot.cli emulator reboot
 ```
 
-Algunas tareas aceptan recovery automático:
+## Notes
 
-```powershell
-python -m bot.cli daily guild --recover-emulator
-```
+- Keep the emulator resolution consistent.
+- Coordinates live in `config/coords.json`.
+- Logs are written to `logs/bot.log`.
+- Failure screenshots are written to `screenshots/dumps/`.
+- Templates live in `templates/`.
+- If the game UI changes, capture a screenshot and update the matching coordinate/template.
 
-## Carpetas importantes
+## Desktop App
 
-```text
-bot/                 Código Python principal
-config/              Coordenadas, checks y configuración de skills
-templates/           Anchors, botones y templates de skills
-screenshots/         Capturas locales y dumps de errores
-logs/                Logs de ejecución
-tests/               Tests offline
-scripts/             Utilidades auxiliares
-```
+A Windows desktop UI can be built with the Tauri app in the desktop worktree. For releases, the usual flow is:
 
-## Recomendaciones
+1. Build the Tauri app on Windows.
+2. Upload the installer to GitHub Releases.
+3. Keep Python/runtime requirements documented, or bundle them in a later portable build.
 
-- Usá siempre la misma resolución del emulador.
-- Antes de una sesión larga, corré `calibrate --identify`.
-- No lances dos `farm/play` al mismo tiempo.
-- Revisá `logs/bot.log` cuando algo no cierre bien.
-- Si una pantalla cambió por update del juego, guardá screenshot y agregá/regenerá template.
+Bundling only the UI is simple. Bundling Python, OpenCV, ADB, templates, and the runtime into a single installer is doable, but should be treated as a separate packaging step.
