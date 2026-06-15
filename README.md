@@ -8,6 +8,7 @@ Local Windows helper for running repeatable Archero 2 emulator routines from the
 - Python 3.12+
 - Git
 - MuMu Player 12, or LDPlayer 9
+- Google Play Services installed and signed in
 - Archero 2 installed in the emulator
 - Emulator resolution set to vertical `900 x 1600`
 
@@ -51,6 +52,8 @@ ADB_HOST=127.0.0.1
 ADB_PORT=16384
 GAME_PACKAGE=com.xq.archeroii
 ```
+
+Install and sign in to Google Play Services before installing Archero 2. Then install/open Archero 2 from that same Play profile so the saved profile loads correctly.
 
 ## Quick Check
 
