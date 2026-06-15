@@ -5,6 +5,7 @@ import time
 from typing import TYPE_CHECKING
 
 import numpy as np
+import cv2
 
 from . import vision
 from .device import sleep
@@ -174,18 +175,26 @@ def is_challenge_ended_banner(screen) -> bool:
 
 def _beige_item_card_heuristic(screen) -> bool:
     h, w = screen.shape[:2]
-    card = screen[h // 6 : 5 * h // 6, w // 8 : 7 * w // 8]
-    if card.size == 0:
+    panel = screen[int(h * 0.11) : int(h * 0.75), int(w * 0.03) : int(w * 0.97)]
+    inner = screen[int(h * 0.19) : int(h * 0.71), int(w * 0.07) : int(w * 0.93)]
+    close_area = screen[int(h * 0.12) : int(h * 0.21), int(w * 0.80) : int(w * 0.96)]
+    if panel.size == 0 or inner.size == 0 or close_area.size == 0:
         return False
-    mean = float(card.mean())
-    std = float(card.std())
-    if mean < 100.0 or std > 50.0:
-        return False
-    x_btn = screen[130:240, 680:820]
-    if x_btn.size == 0 or float(x_btn.std()) < 30.0:
-        return False
-    hint = screen[max(0, h - 140) : h - 20, max(0, w // 2 - 200) : min(w, w // 2 + 200)]
-    return hint.size > 0 and float(hint.mean()) > 12.0
+
+    panel_hsv = cv2.cvtColor(panel, cv2.COLOR_BGR2HSV)
+    inner_hsv = cv2.cvtColor(inner, cv2.COLOR_BGR2HSV)
+    close_hsv = cv2.cvtColor(close_area, cv2.COLOR_BGR2HSV)
+    panel_beige = cv2.inRange(panel_hsv, (8, 35, 120), (40, 180, 255))
+    inner_beige = cv2.inRange(inner_hsv, (8, 25, 120), (40, 180, 255))
+    close_orange = cv2.inRange(close_hsv, (5, 70, 90), (35, 255, 255))
+
+    panel_ratio = cv2.countNonZero(panel_beige) / float(panel_beige.size)
+    inner_ratio = cv2.countNonZero(inner_beige) / float(inner_beige.size)
+    close_ratio = cv2.countNonZero(close_orange) / float(close_orange.size)
+    if panel_ratio >= 0.45 and inner_ratio >= 0.45 and close_ratio >= 0.12:
+        return True
+
+    return False
 
 
 def is_item_detail_popup(screen) -> bool:
@@ -193,7 +202,34 @@ def is_item_detail_popup(screen) -> bool:
         return False
     if not _beige_item_card_heuristic(screen):
         return False
-    return is_challenge_ended_screen(screen) or _loot_grid_heuristic(screen)
+    return True
+
+
+def _item_detail_close_point(screen) -> tuple[int, int]:
+    h, w = screen.shape[:2]
+    x0 = int(w * 0.72)
+    y0 = int(h * 0.10)
+    x1 = int(w * 0.97)
+    y1 = int(h * 0.32)
+    region = screen[y0:y1, x0:x1]
+    if region.size == 0:
+        return 810, 257
+    hsv = cv2.cvtColor(region, cv2.COLOR_BGR2HSV)
+    orange = cv2.inRange(hsv, (5, 70, 90), (35, 255, 255))
+    count, _labels, stats, centroids = cv2.connectedComponentsWithStats(orange, 8)
+    best_idx = -1
+    best_area = 0
+    for i in range(1, count):
+        area = int(stats[i, cv2.CC_STAT_AREA])
+        width = int(stats[i, cv2.CC_STAT_WIDTH])
+        height = int(stats[i, cv2.CC_STAT_HEIGHT])
+        if area > best_area and width >= 18 and height >= 18:
+            best_idx = i
+            best_area = area
+    if best_idx < 0 or best_area < 120:
+        return 810, 257
+    cx, cy = centroids[best_idx]
+    return int(round(x0 + cx)), int(round(y0 + cy))
 
 
 def is_post_run_rewards(screen) -> bool:
@@ -296,11 +332,7 @@ def _close_item_detail_popup(ctx: BotContext) -> None:
     screen = ctx.device.screenshot()
     if is_lobby(screen) or not is_item_detail_popup(screen):
         return
-    try:
-        close = ctx.coords.point("menu", "close_x")
-        x, y = close.x, close.y
-    except (KeyError, ValueError):
-        x, y = 810, 214
+    x, y = _item_detail_close_point(screen)
     log.info("post-run: popup ítem persiste -> tap X (%d,%d)", x, y)
     ctx.tap(x, y, money_check=False, settle=0.45)
 

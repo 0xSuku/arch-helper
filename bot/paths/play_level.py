@@ -242,12 +242,19 @@ class PlayLevelPath:
                 log.warning("No se confirmó lobby antes de entrar al nivel")
                 return False
 
+        self._ensure_campaign_tab()
         if not self._ensure_level_50():
             log.warning("No se pudo confirmar el nivel 50; no presiono Start.")
             return False
 
         self.ctx.tap_point("lobby", "campaign_start", money_check=True, settle=0.0)
         return self._wait_combat_start()
+
+    def _ensure_campaign_tab(self) -> None:
+        try:
+            self.ctx.tap_point("nav", "campaign", money_check=False, settle=0.8)
+        except (KeyError, ValueError) as exc:
+            log.warning("No pude tocar nav.campaign antes de farm/play: %s", exc)
 
     def _level_50_visible(self) -> bool:
         try:
@@ -372,6 +379,7 @@ class PlayLevelPath:
         """Confirma inicio de combate. Si no aparece en start_timeout, asume
         que no se pudo entrar (energía agotada o popup de compra)."""
         deadline = time.time() + self.start_timeout
+        popup_reads = 0
         while time.time() < deadline:
             self.ctx.kill.check()
             sid = self.ctx.current_screen()
@@ -383,15 +391,26 @@ class PlayLevelPath:
             ):
                 log.info("Combate iniciado (%s)", sid.value)
                 return True
+            if sid == ScreenId.POPUP:
+                popup_reads += 1
+                if popup_reads >= 2:
+                    log.info("Popup al iniciar nivel; cierro sin comprar y reintento luego")
+                    self._dismiss_start_blocker()
+                    return False
+            else:
+                popup_reads = 0
             sleep(0.25)
         log.info("No se detectó inicio de combate en %.0fs", self.start_timeout)
         return False
 
+    def _dismiss_start_blocker(self) -> None:
+        self.ctx.back(settle=1.0)
+        self.ctx.return_to_lobby()
+
     def _abort_start(self) -> None:
         """Cierra cualquier popup (p.ej. compra de energía) sin gastar y vuelve al lobby.
         Nunca confirma compras: solo back / cerrar."""
-        self.ctx.back(settle=1.0)
-        self.ctx.return_to_lobby()
+        self._dismiss_start_blocker()
 
     def _resume_active_run_after_start_failure(self) -> bool:
         from ..run_end_dismiss import is_post_run_overlay

@@ -74,7 +74,7 @@
       "in_main_loop": false,
       "verified": false,
       "cli": "python -m bot.cli daily shackled_jungle",
-      "notes": "Start x2 free runs; sin movimiento; elige skills por puntaje",
+      "notes": "Hasta 3 oportunidades si Start sigue disponible; sin movimiento; elige skills por puntaje",
       "verified_at": "2026-06-08T15:56:33"
     },
     "abyssal_tide": {
@@ -111,6 +111,7 @@
     },
     "privilege": {
       "name": "Privilege Card (solo con badge)",
+      "tier": "trusted",
       "in_main_loop": true,
       "verified": false,
       "cli": "python -m bot.cli daily privilege"
@@ -132,9 +133,9 @@
     "hunt": {
       "name": "Hunt (Claim + Quick Hunt free + x5)",
       "in_main_loop": true,
-      "verified": false,
+      "verified": true,
       "cli": "python -m bot.cli daily hunt",
-      "verified_at": "2026-06-08T17:15:46"
+      "verified_at": "2026-06-10T15:13:15"
     },
     "sidebar_events": {
       "name": "Sidebar: Island Treasure, Angler, Campaign Rout",
@@ -188,5 +189,5 @@
       "cli": "python -m bot.cli daily trophy"
     }
   },
-  "period_start": "2026-06-08T21:00:00"
+  "period_start": "2026-06-09T21:00:00"
 }

@@ -36,7 +36,7 @@ ARENA_REFRESH_BEFORE_FALLBACK = 3
 ARENA_VICTORY_POLL_S = 10.0
 ARENA_VICTORY_TIMEOUT = 180.0
 GOLD_CAVE_QUICK_RAIDS = 3
-SHACKLED_JUNGLE_RUNS = 2
+SHACKLED_JUNGLE_RUNS = 3
 SHACKLED_JUNGLE_BATTLE_TIMEOUT = 600.0
 ABYSSAL_TIDE_RUNS = 2
 ABYSSAL_TIDE_BATTLE_TIMEOUT = 270.0
@@ -314,9 +314,67 @@ class DailyPath:
             return False
         return has_red_badge(self.ctx.device.screenshot(), p.x, p.y)
 
+    def _hunt_quick_available(self, key: str) -> bool:
+        try:
+            p = self.ctx.coords.point("hunt", f"{key}_badge")
+        except (KeyError, ValueError):
+            try:
+                p = self.ctx.coords.point("hunt", key)
+            except (KeyError, ValueError):
+                return False
+        screen = self.ctx.device.screenshot()
+        return any(
+            has_red_badge(
+                screen,
+                p.x,
+                p.y,
+                radius=radius,
+                offset_x=offset_x,
+                offset_y=offset_y,
+                min_pixels=min_pixels,
+            )
+            for offset_x, offset_y, radius, min_pixels in (
+                (16, -16, 22, 45),
+                (28, -20, 28, 30),
+                (40, -24, 34, 22),
+                (0, 0, 26, 35),
+            )
+        )
+
+    def _hunt_quick_chances(self, key: str) -> int | None:
+        try:
+            region = self.ctx.coords.region("hunt", f"{key}_chances")
+        except (KeyError, ValueError):
+            return None
+        return vision.read_hunt_chances(self.ctx.device.screenshot(), region)
+
     def _claim_all_generic(self, section: str, key: str = "claim_all") -> None:
         if self._opt(section, key, settle=0.8, money_check=False):
             self._dismiss_reward_popup(2)
+
+    def _tap_optional_reward(
+        self,
+        section: str,
+        key: str,
+        *,
+        settle: float = 0.8,
+        money_check: bool = True,
+        dismiss_times: int = 1,
+        dismiss_cb=None,
+        change_threshold: float = 0.008,
+    ) -> bool:
+        before = self.ctx.device.screenshot()
+        if not self._opt(section, key, settle=settle, money_check=money_check):
+            return False
+        if dismiss_cb is not None:
+            dismiss_cb()
+        elif dismiss_times:
+            self._dismiss_reward_popup(dismiss_times)
+        after = self.ctx.device.screenshot()
+        changed = vision.screen_changed(before, after, threshold=change_threshold)
+        if not changed:
+            log.info("  Sin cambio visible tras %s.%s; asumo no disponible", section, key)
+        return changed
 
     def _exit_battle(self) -> None:
         self._opt("battle", "pause", settle=0.8, money_check=False)
@@ -366,25 +424,39 @@ class DailyPath:
         if not self._opt("nav", "shop", settle=1.5):
             return
 
+        had_work = self.checks.force or any(
+            self._shop_tab_badge(key)
+            for key in ("tab_gear_chest", "tab_limited_offer", "tab_top_up")
+        )
+        claimed_any = False
+
         if self._shop_tab_badge("tab_gear_chest") or self.checks.force:
             if self._opt("shop", "tab_gear_chest", settle=0.8, money_check=False):
-                for key in ("gear_chest_blue_free", "gear_chest_violet_free", "gear_draw_x10"):
-                    self._opt("shop", key, settle=1.0, money_check=True)
-                    self._dismiss_reward_popup(2)
+                for key in ("gear_chest_blue_free", "gear_chest_violet_free"):
+                    claimed_any |= self._tap_optional_reward("shop", key, settle=1.0, money_check=True, dismiss_times=2)
 
         if self._shop_tab_badge("tab_limited_offer") or self.checks.force:
             self._opt("shop", "tab_limited_offer", settle=0.8, money_check=False)
-            self._opt("shop", "limited_offer_free", settle=0.8, money_check=True)
-            self._dismiss_reward_popup(2)
+            for key in (
+                "limited_offer_daily_free",
+                "limited_offer_weekly_free",
+                "limited_offer_monthly_free",
+            ):
+                claimed_any |= self._tap_optional_reward("shop", key, settle=0.8, money_check=True, dismiss_times=2)
+                if not self.checks.force and not self._shop_tab_badge("tab_limited_offer"):
+                    break
 
         if self._shop_tab_badge("tab_top_up") or self.checks.force:
             self._opt("shop", "tab_top_up", settle=0.8, money_check=False)
             self._opt("shop", "top_up_sub_gold", settle=0.8, money_check=False)
-            self._opt("shop", "top_up_free", settle=0.8, money_check=True)
-            self._dismiss_reward_popup(2)
+            for key in ("top_up_gold_free_1", "top_up_gold_free_2"):
+                claimed_any |= self._tap_optional_reward("shop", key, settle=0.8, money_check=True, dismiss_times=2)
 
         self._go_campaign()
-        self._finish_claim("shop")
+        if claimed_any or not had_work:
+            self._finish_claim("shop")
+        else:
+            log.warning("Shop tenía badge pero no pude confirmar ningún free; no marco verificado")
 
     def claim_gold_cave(self) -> None:
         log.info("-> Events / Dungeon / Gold Cave")
@@ -736,7 +808,7 @@ class DailyPath:
         return True
 
     def _events_shackled_jungle(self, *, resume: bool = False, from_popup: bool = False) -> int:
-        log.info("  Shackled Jungle (%d runs, solo skills, sin movimiento)", SHACKLED_JUNGLE_RUNS)
+        log.info("  Shackled Jungle (hasta %d oportunidades, solo skills, sin movimiento)", SHACKLED_JUNGLE_RUNS)
 
         dungeon_combat = CombatRunner(
             self.ctx,
@@ -766,8 +838,7 @@ class DailyPath:
             for n in range(runs_left):
                 run_num = SHACKLED_JUNGLE_RUNS - runs_left + n + 1
                 log.info("    run %d/%d", run_num, SHACKLED_JUNGLE_RUNS)
-                use_ad = run_num >= 2
-                if not self._start_shackled_jungle_run(use_ad_ticket=use_ad):
+                if not self._start_shackled_jungle_run(use_ad_ticket=False):
                     log.info("    Start no disponible; corto")
                     break
                 if self._run_one_shackled(dungeon_combat):
@@ -1242,10 +1313,17 @@ class DailyPath:
             return
         if not self._opt("lobby", "great_value", settle=1.2, money_check=False):
             return
-        self._opt("great_value", "free_bonus", settle=0.8, money_check=False)
-        self._dismiss_reward_popup(2)
+        claimed = False
+        for key in ("free_bonus", "free_bonus_alt_1", "free_bonus_alt_2"):
+            claimed |= self._tap_optional_reward("great_value", key, settle=0.8, money_check=False, dismiss_times=2)
+            if claimed:
+                break
         self._back()
-        self._finish_claim("great_value")
+        self._go_campaign()
+        if claimed:
+            self._finish_claim("great_value")
+        else:
+            log.warning("Great Value abrió pero no pude confirmar free; no marco verificado")
 
     def claim_privilege(self) -> None:
         log.info("-> Privilege Card")
@@ -1256,6 +1334,8 @@ class DailyPath:
             return
         self._claim_all_generic("privilege")
         self._back()
+        self._back()
+        self._go_campaign()
         self._finish_claim("privilege")
 
     def claim_messages(self) -> None:
@@ -1430,19 +1510,50 @@ class DailyPath:
         log.info("-> Hunt (Claim + Quick Hunt free + x5)")
         if not self._opt("lobby", "hunt", settle=1.2, money_check=False):
             return
+        touched = False
         if self._opt("hunt", "claim", settle=0.8, money_check=False):
             log.info("  Hunt claim: espero rewards y cierro overlay inferior")
             self._hunt_dismiss_rewards(wait_s=2.0)
+            touched = True
         if self._opt("hunt", "quick_hunt", settle=1.2, money_check=False):
-            for _ in range(3):
-                self._opt("hunt", "quick_free", settle=0.6, money_check=False)
-                self._hunt_dismiss_rewards(wait_s=1.0)
-            for _ in range(3):
-                self._opt("hunt", "quick_x5", settle=0.6, money_check=False)
-                self._hunt_dismiss_rewards(wait_s=1.0)
+            free_chances = self._hunt_quick_chances("quick_free")
+            if free_chances is None:
+                free_chances = 2 if self._hunt_quick_available("quick_free") else 0
+            log.info("  Quick Hunt free chances: %s", free_chances)
+            for _ in range(min(2, max(0, free_chances))):
+                if free_chances is None and not self._hunt_quick_available("quick_free"):
+                    log.info("  Quick Hunt: sin free diario/ticket visible en quick_free; no toco")
+                    break
+                if not self._tap_optional_reward(
+                    "hunt",
+                    "quick_free",
+                    settle=0.6,
+                    money_check=False,
+                    dismiss_times=0,
+                    dismiss_cb=lambda: self._hunt_dismiss_rewards(wait_s=1.0),
+                ):
+                    break
+                touched = True
+
+            x5_chances = self._hunt_quick_chances("quick_x5")
+            log.info("  Quick Hunt x5 chances: %s", x5_chances if x5_chances is not None else "(no legible)")
+            for _ in range(min(3, max(0, x5_chances or 0))):
+                if not self._tap_optional_reward(
+                    "hunt",
+                    "quick_x5",
+                    settle=0.6,
+                    money_check=False,
+                    dismiss_times=0,
+                    dismiss_cb=lambda: self._hunt_dismiss_rewards(wait_s=1.0),
+                ):
+                    break
+                touched = True
             self._opt("hunt", "close_quick_popup", settle=0.4, money_check=False)
         self._opt("hunt", "close_popup", settle=0.4, money_check=False)
-        self._finish_claim("hunt")
+        if touched or not self._lobby_badge("lobby", "hunt"):
+            self._finish_claim("hunt")
+        else:
+            log.warning("Hunt abrió pero no confirmó rewards; no marco verificado")
 
     def claim_sidebar_events(self) -> None:
         log.info("-> Sidebar events (island, angler, campaign rout)")
@@ -1457,8 +1568,10 @@ class DailyPath:
             if not self._lobby_badge("lobby", lobby_key):
                 log.info("Sin badge en %s; omito", claim_id)
                 continue
-            handler()
-            self._finish_claim(claim_id)
+            if handler() is False:
+                log.warning("%s no completó pasos mínimos; no marco verificado", claim_id)
+            else:
+                self._finish_claim(claim_id)
         self._finish_claim("sidebar_events")
 
     # --- Claims opcionales (fuera del loop principal) ---
@@ -1487,16 +1600,19 @@ class DailyPath:
         self._dismiss_reward_popup(1)
         self._opt("menu", "close_x", settle=0.6, money_check=False)
 
-    def claim_island_treasure(self) -> None:
+    def claim_island_treasure(self) -> bool:
         log.info("-> Island Treasure")
         if not self._opt("lobby", "island_treasure", settle=1.2):
-            return
+            return False
+        opened = True
         if self._opt("island_treasure", "pack_tab", settle=1.0):
-            self._opt("island_treasure", "pack1_free", settle=0.8)
-            self._dismiss_reward_popup(1)
-            self._opt("island_treasure", "pack2_free", settle=0.8)
-            self._dismiss_reward_popup(1)
+            self._tap_optional_reward("island_treasure", "pack1_free", settle=0.8, money_check=True)
+            self._tap_optional_reward("island_treasure", "pack2_free", settle=0.8, money_check=True)
+            opened = True
         self._back()
+        self._back()
+        self._go_campaign()
+        return opened
 
     def claim_angler_bounty(self) -> None:
         log.info("-> Angler's Bounty")

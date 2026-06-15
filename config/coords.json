@@ -110,7 +110,11 @@
 
   "great_value": {
 
-    "free_bonus": { "x": 780, "y": 380, "label": "Bonus Pack Free" }
+    "free_bonus": { "x": 780, "y": 380, "label": "Bonus Pack Free" },
+
+    "free_bonus_alt_1": { "x": 780, "y": 520, "label": "Bonus Pack Free fallback 1" },
+
+    "free_bonus_alt_2": { "x": 780, "y": 660, "label": "Bonus Pack Free fallback 2" }
 
   },
 
@@ -126,11 +130,21 @@
 
     "wish_free": { "x": 220, "y": 490, "label": "Daily Special Pack Free (Wish tab)" },
 
-    "limited_offer_free": { "x": 220, "y": 490, "label": "Daily Special Pack Free (Limited Offer tab)" },
+    "limited_offer_daily_free": { "x": 220, "y": 490, "label": "Daily Special Pack Free (Limited Offer tab)" },
+
+    "limited_offer_weekly_free": { "x": 220, "y": 780, "label": "Weekly Special Pack Free (Limited Offer tab, calibrar)" },
+
+    "limited_offer_monthly_free": { "x": 220, "y": 1070, "label": "Monthly Special Pack Free (Limited Offer tab, calibrar)" },
+
+    "limited_offer_free": { "x": 220, "y": 490, "label": "Alias daily free (Limited Offer tab)" },
 
     "top_up_sub_gold": { "x": 450, "y": 1230, "label": "Sub-tab Gold (Top Up)" },
 
-    "top_up_free": { "x": 220, "y": 490, "label": "Pack free diario (Top Up -> Gold, calibrar si falla)" },
+    "top_up_gold_free_1": { "x": 220, "y": 490, "label": "Pack gold free 1 (Top Up -> Gold, calibrar si falla)" },
+
+    "top_up_gold_free_2": { "x": 680, "y": 490, "label": "Pack gold free 2 (Top Up -> Gold, calibrar si falla)" },
+
+    "top_up_free": { "x": 220, "y": 490, "label": "Alias pack free diario (Top Up -> Gold)" },
 
     "gear_chest_blue_free": { "x": 220, "y": 490, "label": "Cofre celeste free diario (Gear Chest, calibrar si falla)" },
 
@@ -302,7 +316,11 @@
 
     "quick_free": { "x": 274, "y": 1060, "label": "Quick Hunt Free (popup)" },
 
+    "quick_free_chances": { "x": 180, "y": 935, "w": 220, "h": 70, "label": "Texto Chances del Quick Hunt Free" },
+
     "quick_x5": { "x": 626, "y": 1060, "label": "Quick Hunt x5 (popup)" },
+
+    "quick_x5_chances": { "x": 530, "y": 935, "w": 230, "h": 70, "label": "Texto Chances del Quick Hunt x5" },
 
     "close_quick_popup": { "x": 810, "y": 445, "label": "X cerrar popup Quick Hunt" },
 

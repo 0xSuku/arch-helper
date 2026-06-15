@@ -1,238 +1,407 @@
-python -m bot.cli daily guild             # solo guild
-python -m bot.cli daily shackled_jungle    # Events -> Dungeon -> Shackled Jungle
-python -m bot.cli daily abyssal_tide       # Events -> Dungeon -> Abyssal Tide (AFK)
-python -m bot.cli daily guild friends shop # varios en secuencia
+# Arch Helper
+
+Herramienta local para asistir tareas repetitivas en Archero 2 desde un emulador Android en Windows.
+
+La idea es que puedas abrir el emulador, dejar la pantalla en el lobby principal y ejecutar comandos simples desde una terminal. El proyecto usa ADB para leer la pantalla y enviar taps/swipes, con reglas de seguridad para no tocar compras con dinero real.
+
+## Que necesitás instalar
+
+### 1. Python
+
+Instalá Python 3.12 o superior desde:
+
+https://www.python.org/downloads/windows/
+
+Durante la instalación marcá:
+
+- `Add python.exe to PATH`
+- `pip`
+
+Para confirmar que quedó bien:
+
+```powershell
+python --version
+pip --version
 ```
 
-`farm` repite partidas hasta que tocar Start ya no inicia combate (sin energía,
-o aparece un popup de compra que el bot cierra sin gastar). `--max-games` es un
-tope de seguridad para evitar loops infinitos.
+### 2. Git
 
-Con `--forever` no se detiene al agotar la energía: cierra el popup sin gastar,
-espera `--energy-wait` minutos (default **60**) y reintenta, indefinidamente.
-La energía regenera ~1 cada 12 min y un run cuesta 5, así que ~60 min por
-partida. Cortás con el archivo `STOP` o `Ctrl+C`.
+Instalá Git para Windows:
 
-### Shackled Jungle (Dungeon)
+https://git-scm.com/download/win
 
-Combates en Events → Dungeon → Shackled Jungle. Solo elige skills (sin movimiento).
-Derrota o victoria cuenta como run completado.
+Confirmá:
 
-```bash
-python -m bot.cli daily shackled_jungle --force
+```powershell
+git --version
 ```
 
-**Flujo (2 runs/día):**
+### 3. Emulador Android
 
-| Paso | Acción | Coord |
-|------|--------|-------|
-| 1 | Events (nav inferior der) | `(797, 1523)` |
-| 2 | Tab Dungeon | `(680, 1380)` |
-| 3 | Banner Shackled Jungle | `(450, 900)` |
-| 4 | Run 1: Start (ticket free) | `(450, 1264)` |
-| 5 | Run 2: ticket ad (izq) + doble Start | `(320, 1100)` + `(450, 1264)` ×2 |
-| 6 | Fin de run: tap empty (centro, debajo del grid) | `(450, 1552)` |
-| 7 | Salir: back popup → Campaign | `menu.back` → `nav.campaign` |
+La configuración por defecto está pensada para **MuMu Player 12**. También se puede usar LDPlayer 9.
 
-**Skills:** rechaza pacto solo si el botón rojo Reject está visible. Si no,
-elige la carta con mayor score según `config/skills.json`.
+Recomendado para empezar:
 
-Coords en `events.shackled_jungle_*` en [config/coords.json](config/coords.json).
+- MuMu Player 12 instalado.
+- Archero 2 instalado dentro del emulador.
+- Resolución del emulador: **900 x 1600 vertical**.
+- El juego abierto en el lobby principal.
 
-### Abyssal Tide (Dungeon)
+El archivo `.env.example` trae valores base para MuMu:
 
-Combates en Events → Dungeon → Abyssal Tide. Modo **AFK**: espera en combate (~1.5–4 min),
-elige skill si aparece level-up, y vuelve al lobby de campaña.
-
-```bash
-python -m bot.cli daily abyssal_tide --force
+```env
+EMULATOR=mumu
+EMULATOR_DIR=D:\Program Files\Netease\MuMuPlayer\nx_main
+EMULATOR_INDEX=0
+ADB_HOST=127.0.0.1
+ADB_PORT=16384
+GAME_PACKAGE=com.xq.archeroii
+SCREEN_WIDTH=1600
+SCREEN_HEIGHT=900
 ```
 
-**Flujo (2 free/día + ad si hay ticket video):**
+Si tu instalación está en otra carpeta, copiá `.env.example` a `.env` y editá `EMULATOR_DIR`.
 
-| Paso | Acción | Coord |
-|------|--------|-------|
-| 1 | Events (nav inferior der) | `(797, 1523)` |
-| 2 | Tab Dungeon | `(680, 1380)` |
-| 3 | Banner Abyssal Tide | `(450, 1050)` |
-| 4 | Run 1–2: Start (ticket free) | `(450, 1290)` |
-| 5 | Run ad (si visible): ticket ad + doble Start | `(320, 1100)` + `(450, 1290)` ×2 |
-| 6 | Fin de run: tap empty | `(450, 1552)` |
-| 7 | Salir: back popup → Campaign | `menu.back` → `nav.campaign` |
-
-Coords en `events.abyssal_tide_*` en [config/coords.json](config/coords.json).
-
-### Selección del nivel 50 (a prueba de errores)
-
-Antes de cada Start, el bot verifica por imagen que el título del nivel 50
-("Fairytale Fortress") esté centrado. Si no lo está, lee el **piso actual** del
-badge en el mapa y navega en la dirección correcta:
-
-- piso **menor** que 50 → sube (49 → 50)
-- piso **mayor** que 50 → baja
-
-Solo si no puede leer el piso ni encontrarlo subiendo/bajando, hace el rescan
-completo desde el piso 1. **Nunca presiona Start** si no confirma el nivel 50.
-
-Calibrar lectura del badge (si falla): capturá el lobby en el mapa de campaña y
-ajustá `lobby.campaign_floor_badge` en `coords.json`, o probá:
-
-```bash
-python -m bot.cli calibrate --read-floor
+```powershell
+Copy-Item .env.example .env
+notepad .env
 ```
 
-Para mejor lectura de todos los dígitos, podés recortar `templates/digits/0.png`
-… `9.png` desde una captura del badge.
+## Instalación del proyecto
 
-Otros comandos:
+Cloná el repositorio:
 
-```bash
-# Jugar un número fijo de partidas (manual)
-python -m bot.cli play --games 5 --level 50
-
-# Herramientas de calibración
-python -m bot.cli calibrate --shot pantalla.png      # captura
-python -m bot.cli calibrate --identify               # pantalla detectada
-python -m bot.cli calibrate --tap 581,1130           # tap de prueba
-python -m bot.cli calibrate --crop 74,648,170,150 --out templates/skills/dano/x.png
+```powershell
+git clone git@github.com:0xSuku/arch-helper.git
+cd arch-helper
 ```
 
-Post-run **Challenge has ended**: el bot detecta el banner por color, layout y (opcional) template.
-Para máxima precisión, recortá el banner con la pantalla visible:
+Creá un entorno virtual:
 
-```bash
-python -m bot.cli calibrate --crop 200,280,500,90 --out templates/anchors/challenge_ended.png
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
 ```
 
-### Kill-switch (parada de emergencia)
+Si PowerShell bloquea la activación, usá:
 
-- Crear un archivo vacío llamado `STOP` en la raíz del proyecto detiene el bot antes
-  de la siguiente acción.
-- `Ctrl+C` también lo corta de forma limpia.
+```powershell
+powershell -ExecutionPolicy Bypass -NoProfile
+.\.venv\Scripts\Activate.ps1
+```
 
-## Selección de skills (sin IA)
+Instalá dependencias:
 
-Cada skill tiene ID `categoria/nombre` (template opcional en `templates/skills/`).
-**Categorías:** Daño (`dano`), Utilidad (`utilidad`), Movilidad (`movilidad`), Atk Speed (`atk_speed`).
-**Grupos:** Meteoro, Planta, Elemental, Sprite, Circulos, Swords, MainWeapon — se asignan en el panel y viven en `groups_map`.
+```powershell
+pip install -r requirements.txt
+```
 
-In-game el bot elige la carta con mayor score. Ya **no** intenta detectar/catalogar activos;
-solo rechaza pactos si el botón rojo Reject está visible.
+## Primer chequeo
 
-### Puntajes
+Con el emulador abierto y el juego en el lobby, probá:
 
-```bash
+```powershell
+python -m bot.cli emulator status
+```
+
+Si ADB no conecta, probá:
+
+```powershell
+python -m bot.cli emulator reconnect
+```
+
+Para confirmar que puede ver la pantalla:
+
+```powershell
+python -m bot.cli calibrate --shot prueba.png --identify
+```
+
+Eso guarda una captura en `screenshots/prueba.png` y muestra qué pantalla detectó.
+
+## Correr nivel 50
+
+### Una cantidad fija de partidas
+
+Para correr 5 partidas del nivel 50:
+
+```powershell
+python -m bot.cli play --level 50 --games 5
+```
+
+### Consumir energía disponible
+
+Para correr nivel 50 hasta quedarse sin energía o llegar al límite de seguridad:
+
+```powershell
+python -m bot.cli farm --level 50
+```
+
+Por defecto tiene `--max-games 40`, para evitar loops accidentales.
+
+Podés cambiarlo:
+
+```powershell
+python -m bot.cli farm --level 50 --max-games 10
+```
+
+### Modo continuo
+
+Para que espere energía y vuelva a intentar:
+
+```powershell
+python -m bot.cli farm --level 50 --forever
+```
+
+Cuando aparece un popup para comprar energía, la herramienta lo cierra sin comprar, espera y reintenta. El tiempo default es 60 minutos.
+
+Para cambiar la espera:
+
+```powershell
+python -m bot.cli farm --level 50 --forever --energy-wait 30
+```
+
+### Movimiento durante partida
+
+Por defecto intenta mantenerse quieto y resolver selección de skills. Si querés activar esquive continuo:
+
+```powershell
+python -m bot.cli farm --level 50 --dodge
+```
+
+## Cortar una ejecución
+
+La forma más simple:
+
+```powershell
+Ctrl+C
+```
+
+También podés crear un archivo llamado `STOP` en la raíz del proyecto. La herramienta lo revisa antes de cada acción importante y se detiene.
+
+Para crearlo desde PowerShell:
+
+```powershell
+New-Item STOP -ItemType File
+```
+
+Para limpiarlo:
+
+```powershell
+Remove-Item STOP
+```
+
+Importante: solo puede correr un `play` o `farm` a la vez. Si ves:
+
+```text
+Ya hay un farm/play corriendo; no inicio otro
+```
+
+significa que todavía hay una ejecución activa. Cerrá esa terminal o matá el proceso Python correspondiente.
+
+## Tareas diarias
+
+Ver lista disponible:
+
+```powershell
+python -m bot.cli daily --list
+```
+
+Correr el grupo principal:
+
+```powershell
+python -m bot.cli daily
+```
+
+Correr una tarea puntual:
+
+```powershell
+python -m bot.cli daily guild
+python -m bot.cli daily shop
+python -m bot.cli daily hunt
+```
+
+Correr varias:
+
+```powershell
+python -m bot.cli daily guild friends shop
+```
+
+Forzar una tarea aunque ya figure verificada:
+
+```powershell
+python -m bot.cli daily shop --force
+```
+
+Ver estado de checks:
+
+```powershell
+python -m bot.cli daily --status
+```
+
+Resetear checks:
+
+```powershell
+python -m bot.cli daily --reset-checks all
+```
+
+## Panel local
+
+Si preferís botones en navegador:
+
+```powershell
+python -m bot.cli panel
+```
+
+Después abrí:
+
+```text
+http://127.0.0.1:8765
+```
+
+Desde ahí podés lanzar tareas, ver logs y editar prioridades de skills.
+
+## Skills y prioridades
+
+La selección de skills usa templates y puntajes configurables. Mayor score significa mayor prioridad.
+
+Listar:
+
+```powershell
 python -m bot.cli skills list
-python -m bot.cli skills set dano/piercing_arrow 100
+```
+
+Setear prioridad:
+
+```powershell
+python -m bot.cli skills set dano/bolt 90
+```
+
+Subir o bajar un score:
+
+```powershell
 python -m bot.cli skills bump dano/bolt 5
+python -m bot.cli skills bump dano/bolt -5
+```
+
+Escanear la pantalla actual de selección:
+
+```powershell
 python -m bot.cli skills scan
 ```
 
-Los scores viven en [config/skills.json](config/skills.json) → `scores`. Skills sin
-score manual usan `category_defaults`.
+Durante `play` y `farm`, las cartas no identificadas se guardan en el catálogo para etiquetarlas después desde el panel.
 
-**Desde el panel:** editá nombre, categoría, **grupo** y score → **Guardar** (copia el PNG del catálogo a `templates/skills/` automáticamente). **Scan in-game** cataloga cartas visibles en `skills-catalog.json`;
+## Calibración rápida
 
-Para etiquetar en lote contra el [wiki de Skills](https://archero-2.game-vault.net/wiki/Skills):
+Capturar pantalla:
 
-```bash
-python scripts/label_skills_from_wiki.py
+```powershell
+python -m bot.cli calibrate --shot pantalla.png
 ```
 
-Descarga íconos del wiki, compara con `templates/skills_catalog/` y completa nombres, categorías y grupos.
-durante farm/play también se cataloga cada skill select automáticamente. Entradas
-`catalog/...` son skills sin identificar aún — etiquetalas en el panel (Guardar) o
-movelas manualmente a `templates/skills/<cat>/`.
+Identificar pantalla actual:
 
-El panel muestra la **pantalla actual** (lobby, battle, skill_select, …) y antes de
-cada tarea vuelve al **lobby de campaña**; si estás en combate activo no interrumpe
-(salvo que lances otra tarea de menú — ahí avisa y no arranca).
+```powershell
+python -m bot.cli calibrate --identify
+```
 
-Configurable en `skills.json`:
+Enviar tap de prueba:
 
-- `selection_mode`: `score` (default) o `category` (orden por categoría, modo anterior).
-- `avoid`: categorías a evitar (ej. `utilidad`).
-- `match_threshold`: confianza mínima del template match.
-- `devil_deal`: `reject` (default) o `sign`. Los tratos del diablo cuestan Max HP.
+```powershell
+python -m bot.cli calibrate --tap 450,1523
+```
 
-Funcionamiento: en cada level-up se detectan las cartas (2 o 3), se matchean contra
-los templates y se elige la de **mayor puntaje**. Las cartas sin match confiable se
-guardan en `templates/unknown_skills/` para etiquetar: movelas a
-`templates/skills/<categoria>/` y asignales score con `skills set`.
+Recortar un template:
 
-## Failsafes
+```powershell
+python -m bot.cli calibrate --crop 200,280,500,90 --out templates/anchors/challenge_ended.png
+```
 
-- **MoneyGuard**: nunca toca botones con etiqueta de precio en dinero real (`templates/buttons/money_tag.png`).
-- **StuckDetector**: detecta pantallas congeladas y dispara recovery.
-- **UnknownScreenWatchdog**: aborta el path si la pantalla queda irreconocible demasiado tiempo.
-- **BattleTimeout:** corta una partida que excede su duración máxima (default 200s; usar `--battle-timeout 480` para runs de 50 waves).
-- **Kill-switch:** archivo `STOP` + `Ctrl+C`.
-- Tras victoria/derrota el bot espera hasta 75s en pantallas de carga/transición antes de volver al lobby.
-- Logs en `logs/bot.log`; dumps de captura ante error en `screenshots/dumps/`.
+Leer el piso actual del mapa campaña:
 
-### Emulador colgado (loading infinito)
+```powershell
+python -m bot.cli calibrate --read-floor
+```
 
-A veces el emulador se queda congelado (p. ej. popup "Ongoing guild tech donations"):
-los taps por ADB dejan de tener efecto y **solo reiniciar el emulador** lo desbloquea.
+Las coordenadas están en `config/coords.json` y usan el espacio de captura vertical `900x1600`.
 
-**Manual:**
+## Problemas comunes
 
-```bash
+### ADB no conecta
+
+Probá:
+
+```powershell
+python -m bot.cli emulator reconnect
+```
+
+Si sigue fallando:
+
+- Confirmá que el emulador esté abierto.
+- Revisá `EMULATOR_DIR` en `.env`.
+- Revisá `ADB_PORT`.
+- Probá reiniciar el emulador.
+
+### La pantalla detectada no coincide
+
+Sacá una captura:
+
+```powershell
+python -m bot.cli calibrate --shot debug.png --identify
+```
+
+Abrí `screenshots/debug.png` y compará con la pantalla real. Si cambió la resolución o escala, hay que recalibrar coordenadas/templates.
+
+### Se quedó una ejecución bloqueando otra
+
+Listá procesos Python:
+
+```powershell
+wmic process where "name like '%python%'" get ProcessId,CommandLine
+```
+
+Luego cerrá el PID correcto:
+
+```powershell
+Stop-Process -Id 1234
+```
+
+### Loading infinito o emulador congelado
+
+Estado:
+
+```powershell
+python -m bot.cli emulator status
+```
+
+Reiniciar emulador y esperar lobby:
+
+```powershell
 python -m bot.cli emulator reboot
 ```
 
-**Automático (opcional):** con `--recover-emulator` el bot detecta loading colgado en
-Guild Legacy, reinicia el emulador, espera ADB + lobby y reintenta **una vez**
-por sesión:
+Algunas tareas aceptan recovery automático:
 
-```bash
-python -m bot.cli daily guild --force --recover-emulator
+```powershell
+python -m bot.cli daily guild --recover-emulator
 ```
 
-Estado del emulador: `python -m bot.cli emulator status`
-Reconectar ADB: `python -m bot.cli emulator reconnect`
+## Carpetas importantes
 
-## Calibración
-
-Las coords viven en [config/coords.json](config/coords.json) (espacio 900x1600). Un
-punto en `0,0` está sin calibrar y se omite/avisa en vez de romper el flujo. Para
-calibrar un punto: poné el juego en la pantalla correspondiente, capturá con
-`calibrate --shot`, abrí la imagen, leé el pixel y editá el JSON. Para templates usá
-`calibrate --crop X,Y,W,H --out ruta.png`.
-
-Anchors de pantalla en `templates/anchors/` (lobby, battle_hud, skill_select,
-devil_deal, victory, defeat). Si falta un anchor, esa pantalla simplemente no se
-detecta (no rompe).
-
-## Estructura
-
-```
-bot/
-  device.py    # ADB: screenshot()->np.array, tap, swipe, back, key
-  vision.py    # template matching multiescala, detección de cartas, diffs
-  screens.py   # identify() -> ScreenId por anchors
-  skills.py    # SkillPicker (match + puntaje)
-  skill_scores.py # list/set/bump de puntajes
-  failsafes.py # MoneyGuard, StuckDetector, watchdogs, kill-switch, BattleTimeout
-  emulator.py  # MuMuManager / ldconsole: launch, reboot, runapp, ADB
-  ldplayer.py    # alias legacy de emulator.py
-  recovery.py    # reboot emulador y esperar lobby tras hang
-  configs.py   # carga de config/coords.json y config/skills.json
-  log.py       # logging + dumps
-  paths/
-    base.py        # contexto compartido + helpers
-    daily.py       # flujo diario validado
-    play_level.py  # jugar N partidas (entrar, x3, esquivar, skills, fin de run)
-  cli.py       # launcher: daily | play | calibrate | panel
-  panel/       # panel web local (HTTP + botones)
-config/        # coords.json, skills.json, daily-claims.json, skills-catalog.json
-templates/     # anchors/, buttons/, skills/<categoria>/, skills_catalog/
-scripts/       # utilidades (label_skills_from_wiki, calib_autofight)
-uploads/       # datos opcionales para scripts (Skills-0.md del wiki)
+```text
+bot/                 Código Python principal
+config/              Coordenadas, checks y configuración de skills
+templates/           Anchors, botones y templates de skills
+screenshots/         Capturas locales y dumps de errores
+logs/                Logs de ejecución
+tests/               Tests offline
+scripts/             Utilidades auxiliares
 ```
 
-## Notas
+## Recomendaciones
 
-- Si cambiás la resolución del emulador, recalibrá coords y anchors.
-- Usar bots puede violar los TOS del juego — úsalo bajo tu responsabilidad.
-- El bot nunca gasta dinero real ni moneda de evento sin tu indicación.
+- Usá siempre la misma resolución del emulador.
+- Antes de una sesión larga, corré `calibrate --identify`.
+- No lances dos `farm/play` al mismo tiempo.
+- Revisá `logs/bot.log` cuando algo no cierre bien.
+- Si una pantalla cambió por update del juego, guardá screenshot y agregá/regenerá template.

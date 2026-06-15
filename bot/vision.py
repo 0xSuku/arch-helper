@@ -174,6 +174,7 @@ def screen_changed(a: np.ndarray, b: np.ndarray, threshold: float = 0.01) -> boo
 
 
 DIGITS_DIR = TEMPLATES / "digits"
+HUNT_CHANCES_DIR = TEMPLATES / "hunt_chances"
 LEVEL50_ANCHOR = TEMPLATES / "anchors" / "level50.png"
 DEFAULT_CAMPAIGN_FLOOR_BADGE: Region = (72, 562, 86, 74)
 
@@ -233,6 +234,57 @@ def _match_digit(patch: np.ndarray, templates: dict[str, np.ndarray]) -> tuple[s
         if conf > best_conf:
             best_digit, best_conf = digit, conf
     return best_digit, best_conf
+
+
+def _load_hunt_chance_templates() -> dict[str, np.ndarray]:
+    templates: dict[str, np.ndarray] = {}
+    if not HUNT_CHANCES_DIR.exists():
+        return templates
+    for path in sorted(HUNT_CHANCES_DIR.glob("*.png")):
+        img = cv2.imread(str(path), cv2.IMREAD_GRAYSCALE)
+        if img is not None:
+            templates[path.stem] = img
+    return templates
+
+
+def read_hunt_chances(
+    screen: np.ndarray,
+    region: Region,
+    *,
+    min_conf: float = 0.55,
+) -> int | None:
+    """Lee el número al final de "Chances: N" en el popup Quick Hunt."""
+    patch = crop(screen, region)
+    if patch.size == 0:
+        return None
+    hsv = cv2.cvtColor(patch, cv2.COLOR_BGR2HSV)
+    # Texto marrón oscuro sobre fondo beige.
+    mask = cv2.inRange(hsv, (5, 60, 40), (35, 255, 170))
+    count, _labels, stats, _centroids = cv2.connectedComponentsWithStats(mask, 8)
+    boxes: list[tuple[int, int, int, int, int]] = []
+    for i in range(1, count):
+        x, y, w, h, area = (int(v) for v in stats[i])
+        if area >= 25 and h >= 10:
+            boxes.append((x, y, w, h, area))
+    if not boxes:
+        return None
+
+    x, y, w, h, _area = max(boxes, key=lambda b: b[0] + b[2])
+    pad = 3
+    x0 = max(0, x - pad)
+    y0 = max(0, y - pad)
+    x1 = min(mask.shape[1], x + w + pad)
+    y1 = min(mask.shape[0], y + h + pad)
+    digit = mask[y0:y1, x0:x1]
+
+    templates = _load_hunt_chance_templates()
+    best_digit, best_conf = _match_digit(digit, templates)
+    if not best_digit or best_conf < min_conf:
+        return None
+    try:
+        return int(best_digit)
+    except ValueError:
+        return None
 
 
 def _trim_glyph(tpl: np.ndarray) -> np.ndarray:

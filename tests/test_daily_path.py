@@ -10,6 +10,7 @@ from bot.screens import ScreenId
 class _Checks:
     def __init__(self) -> None:
         self.verified: list[str] = []
+        self.force = False
 
     def mark_verified(self, claim_id: str) -> None:
         self.verified.append(claim_id)
@@ -18,9 +19,18 @@ class _Checks:
 class _Ctx:
     def __init__(self, screen: ScreenId) -> None:
         self._screen = screen
+        self.back_count = 0
+        self.return_to_lobby_count = 0
 
     def current_screen(self) -> ScreenId:
         return self._screen
+
+    def back(self, *, settle: float = 1.0) -> None:
+        self.back_count += 1
+
+    def return_to_lobby(self) -> bool:
+        self.return_to_lobby_count += 1
+        return True
 
 
 def _daily_path() -> DailyPath:
@@ -84,6 +94,132 @@ class DailyPathRegressionTests(unittest.TestCase):
         path.claim_abyssal_tide()
 
         self.assertEqual(calls, [{}])
+
+    def test_shackled_attempts_three_available_start_chances(self) -> None:
+        path = _daily_path()
+        path.ctx = _Ctx(ScreenId.UNKNOWN)
+        path._is_shackled_combat_active = lambda: False
+        path._is_shackled_jungle_popup = lambda: True
+        starts: list[bool] = []
+        path._start_shackled_jungle_run = lambda *, use_ad_ticket=False: starts.append(use_ad_ticket) or True
+        path._run_one_shackled = lambda _runner: True
+
+        with patch("bot.paths.daily.CombatRunner", lambda *args, **kwargs: object()), patch(
+            "bot.paths.daily.sleep", lambda *_args, **_kwargs: None
+        ):
+            completed = path._events_shackled_jungle(from_popup=True)
+
+        self.assertEqual(completed, 3)
+        self.assertEqual(starts, [False, False, False])
+
+    def test_shackled_stops_when_next_start_unavailable(self) -> None:
+        path = _daily_path()
+        path.ctx = _Ctx(ScreenId.UNKNOWN)
+        path._is_shackled_combat_active = lambda: False
+        path._is_shackled_jungle_popup = lambda: True
+        attempts = [True, False]
+        path._start_shackled_jungle_run = lambda *, use_ad_ticket=False: attempts.pop(0)
+        path._run_one_shackled = lambda _runner: True
+
+        with patch("bot.paths.daily.CombatRunner", lambda *args, **kwargs: object()), patch(
+            "bot.paths.daily.sleep", lambda *_args, **_kwargs: None
+        ):
+            completed = path._events_shackled_jungle(from_popup=True)
+
+        self.assertEqual(completed, 1)
+
+    def test_privilege_returns_to_campaign_with_extra_back(self) -> None:
+        path = _daily_path()
+        backs: list[str] = []
+        path._lobby_badge = lambda section, key: True
+        path._opt = lambda section, key, **kwargs: True
+        path._claim_all_generic = lambda section: None
+        path._back = lambda: backs.append("back")
+        path._go_campaign = lambda: backs.append("campaign")
+
+        path.claim_privilege()
+
+        self.assertEqual(backs, ["back", "back", "campaign"])
+        self.assertIn("privilege", path.checks.verified)
+
+    def test_shop_does_not_tap_gear_draw_x10_and_checks_all_free_sections(self) -> None:
+        path = _daily_path()
+        path.checks.force = True
+        tabs: list[str] = []
+        rewards: list[str] = []
+        path._shop_tab_badge = lambda key: True
+
+        def opt(section: str, key: str, **kwargs) -> bool:
+            if key.startswith("tab_") or key == "top_up_sub_gold":
+                tabs.append(key)
+            return True
+
+        path._opt = opt
+        path._tap_optional_reward = lambda section, key, **kwargs: rewards.append(key) or True
+        path._go_campaign = lambda: None
+
+        path.claim_shop()
+
+        self.assertNotIn("gear_draw_x10", rewards)
+        self.assertIn("gear_chest_blue_free", rewards)
+        self.assertIn("gear_chest_violet_free", rewards)
+        self.assertIn("limited_offer_daily_free", rewards)
+        self.assertIn("limited_offer_weekly_free", rewards)
+        self.assertIn("limited_offer_monthly_free", rewards)
+        self.assertIn("top_up_gold_free_1", rewards)
+        self.assertIn("top_up_gold_free_2", rewards)
+        self.assertIn("shop", path.checks.verified)
+
+    def test_hunt_uses_quick_hunt_chances_counts(self) -> None:
+        path = _daily_path()
+        taps: list[str] = []
+        path._opt = lambda section, key, **kwargs: True
+        path._hunt_dismiss_rewards = lambda **kwargs: None
+        path._tap_optional_reward = lambda section, key, **kwargs: taps.append(key) or True
+        path._hunt_quick_chances = lambda key: {"quick_free": 0, "quick_x5": 3}[key]
+        path._hunt_quick_available = lambda key: False
+
+        path.claim_hunt()
+
+        self.assertEqual(taps.count("quick_free"), 0)
+        self.assertEqual(taps.count("quick_x5"), 3)
+        self.assertIn("hunt", path.checks.verified)
+
+    def test_hunt_skips_quick_claims_when_no_free_or_ticket_available(self) -> None:
+        path = _daily_path()
+        quick_taps: list[str] = []
+        opened: list[str] = []
+
+        def opt(section: str, key: str, **kwargs) -> bool:
+            opened.append(key)
+            return True
+
+        path._opt = opt
+        path._hunt_dismiss_rewards = lambda **kwargs: None
+        path._tap_optional_reward = lambda section, key, **kwargs: quick_taps.append(key) or True
+        path._hunt_quick_chances = lambda key: 0
+        path._hunt_quick_available = lambda key: False
+        path._lobby_badge = lambda section, key: False
+
+        path.claim_hunt()
+
+        self.assertIn("quick_hunt", opened)
+        self.assertIn("close_quick_popup", opened)
+        self.assertNotIn("quick_free", quick_taps)
+        self.assertNotIn("quick_x5", quick_taps)
+
+    def test_island_treasure_returns_to_campaign_with_extra_back(self) -> None:
+        path = _daily_path()
+        backs: list[str] = []
+        path._opt = lambda section, key, **kwargs: True
+        path._tap_optional_reward = lambda section, key, **kwargs: True
+        path._back = lambda: backs.append("back")
+        path._go_campaign = lambda: backs.append("campaign")
+
+        result = path.claim_island_treasure()
+
+        self.assertTrue(result)
+        self.assertEqual(backs, ["back", "back", "campaign"])
 
 
 if __name__ == "__main__":
