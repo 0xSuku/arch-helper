@@ -14,6 +14,8 @@ class CombatRunner:
         dodge: bool = False,
         skills_only: bool = False,
         afk_only: bool = False,
+        circle_move: bool | None = None,
+        survival_only: bool = False,
     ) -> None:
         self._path = PlayLevelPath(
             ctx,
@@ -22,10 +24,15 @@ class CombatRunner:
             dodge=dodge,
             skills_only=skills_only,
             afk_only=afk_only,
+            circle_move=circle_move,
+            survival_only=survival_only,
         )
 
     def run_until_end(self) -> str:
         return self._path._fight()
+
+    def run_until_end_verified(self) -> tuple[str, bool]:
+        return self._path.fight_verified()
 
     def collect_end(self) -> None:
         self._path._collect_run_end()

@@ -102,7 +102,26 @@ Remove-Item STOP
 
 Only one `farm`/`play` run can be active at a time.
 
-## Local Panel
+## Desktop release (Windows)
+
+Para usuarios **sin experiencia técnica**, usá el ZIP de [GitHub Releases](https://github.com/0xSuku/arch-helper/releases):
+
+1. Descomprimí el ZIP
+2. Ejecutá `release\Instalar.cmd` (una sola vez)
+3. Abrí MuMu + Archero 2 en el lobby
+4. Ejecutá `release\Iniciar-Panel.cmd`
+
+Guía completa en español: [`release/LEEME-INSTALACION.md`](release/LEEME-INSTALACION.md)
+
+Para generar el ZIP localmente:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/build-release.ps1
+```
+
+El archivo queda en `dist/arch-helper-vX.Y.Z-windows.zip`.
+
+## Local Panel (desarrollo)
 
 Start the local panel:
 
@@ -116,9 +135,11 @@ Open:
 http://127.0.0.1:8765
 ```
 
-The panel exposes the common actions, status, logs, and skill priority editing.
+The panel exposes the common actions, status, logs, and skill priority editing. On Windows it opens the browser automatically.
 
-## Useful Commands
+## Desktop App (Tauri, opcional)
+
+A Windows desktop UI can be built with the Tauri app in a separate worktree. The recommended release for most users is the ZIP + panel above.
 
 ```powershell
 python -m bot.cli daily --list
@@ -137,12 +158,4 @@ python -m bot.cli emulator reboot
 - Templates live in `templates/`.
 - If the game UI changes, capture a screenshot and update the matching coordinate/template.
 
-## Desktop App
-
-A Windows desktop UI can be built with the Tauri app in the desktop worktree. For releases, the usual flow is:
-
-1. Build the Tauri app on Windows.
-2. Upload the installer to GitHub Releases.
-3. Keep Python/runtime requirements documented, or bundle them in a later portable build.
-
-Bundling only the UI is simple. Bundling Python, OpenCV, ADB, templates, and the runtime into a single installer is doable, but should be treated as a separate packaging step.
+## Useful Commands

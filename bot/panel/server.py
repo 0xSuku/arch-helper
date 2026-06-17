@@ -239,7 +239,7 @@ def _tail_log(max_lines: int) -> list[str]:
     return lines[-max_lines:]
 
 
-def run_panel(host: str = "127.0.0.1", port: int = 8765) -> None:
+def run_panel(host: str = "127.0.0.1", port: int = 8765, *, open_browser: bool = True) -> None:
     if not STATIC_DIR.exists():
         raise FileNotFoundError(f"Falta carpeta static del panel: {STATIC_DIR}")
 
@@ -247,6 +247,12 @@ def run_panel(host: str = "127.0.0.1", port: int = 8765) -> None:
     url = f"http://{host}:{port}/"
     log.info("Panel web en %s (Ctrl+C para cerrar)", url)
     print(f"\n  Archero v2 Panel -> {url}\n")
+
+    if open_browser:
+        import threading
+        import webbrowser
+
+        threading.Timer(1.0, lambda: webbrowser.open(url)).start()
 
     try:
         server.serve_forever()
@@ -262,8 +268,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Panel web del bot Archero v2")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
+    parser.add_argument("--no-browser", action="store_true", help="No abrir el navegador automaticamente")
     args = parser.parse_args()
-    run_panel(args.host, args.port)
+    run_panel(args.host, args.port, open_browser=not args.no_browser)
 
 
 if __name__ == "__main__":

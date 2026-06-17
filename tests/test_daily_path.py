@@ -36,6 +36,7 @@ class _Ctx:
 def _daily_path() -> DailyPath:
     path = object.__new__(DailyPath)
     path.checks = _Checks()
+    path.arena_max_power = 5.0
     return path
 
 
@@ -51,6 +52,16 @@ class DailyPathRegressionTests(unittest.TestCase):
         path.claim_arena()
 
         self.assertNotIn("arena", path.checks.verified)
+
+    def test_arena_pick_prefers_highest_row_under_max_power(self) -> None:
+        path = _daily_path()
+        path.arena_max_power = 4.5
+        powers = {1: 8.42, 2: 2.0, 3: 4.0, 4: 6.04, 5: 2.63}
+        path._read_arena_opponent_power = lambda index: powers.get(index)
+
+        target = path._arena_pick_target()
+
+        self.assertEqual(target, 3)
 
     def test_peak_arena_recovery_reopens_peak_banner(self) -> None:
         path = _daily_path()

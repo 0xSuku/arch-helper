@@ -90,10 +90,52 @@
       "name": "Events -> Arena (rivales, OCR poder, salir combate)",
       "tier": "candidate",
       "in_main_loop": false,
+      "verified": true,
+      "cli": "python -m bot.cli daily arena --force --arena-max-power 4.5 --arena-fights 2",
+      "notes": "Rivales #3-5; elige el mas arriba bajo --arena-max-power. Refresh si ninguno califica.",
+      "verified_at": "2026-06-17T18:48:08"
+    },
+    "peak_arena": {
+      "name": "Events -> Peak Arena",
+      "tier": "candidate",
+      "in_main_loop": false,
       "verified": false,
-      "cli": "python -m bot.cli daily arena --force",
-      "notes": "Refresh rival #3 hasta 3x; si sigue >=5M ataca #4. Espera Victory y Confirm. --arena-fights N",
-      "verified_at": "2026-06-07T16:46:47"
+      "cli": "python -m bot.cli daily peak_arena --force --arena-fights 2 --arena-max-power 5"
+    },
+    "rumble_ladder": {
+      "name": "Events -> Challenge -> Rumble Ladder (survival)",
+      "tier": "candidate",
+      "in_main_loop": false,
+      "verified": false,
+      "cli": "python -m bot.cli daily rumble_ladder --force"
+    },
+    "seal_battle": {
+      "name": "Events -> Challenge -> Seal Battle (circulos + verifica combate)",
+      "tier": "candidate",
+      "in_main_loop": false,
+      "verified": false,
+      "cli": "python -m bot.cli daily seal_battle --force"
+    },
+    "monster_invasion": {
+      "name": "Events -> Challenge -> Monster Invasion (circulos + verifica combate)",
+      "tier": "candidate",
+      "in_main_loop": false,
+      "verified": false,
+      "cli": "python -m bot.cli daily monster_invasion --force"
+    },
+    "magic_plant_defense": {
+      "name": "Events -> Challenge -> Magic Plant Defense (circulos + verifica combate)",
+      "tier": "candidate",
+      "in_main_loop": false,
+      "verified": false,
+      "cli": "python -m bot.cli daily magic_plant_defense --force"
+    },
+    "rune_ruins": {
+      "name": "Rune Ruins picks (x5 + buscar 2 llaves)",
+      "tier": "candidate",
+      "in_main_loop": false,
+      "verified": false,
+      "cli": "python -m bot.cli daily rune_ruins --force --rune-ruins-keys 30"
     },
     "events": {
       "name": "Events (Gold Cave + Arena + Peak Arena, 2 peleas c/u)",
@@ -133,7 +175,7 @@
     "hunt": {
       "name": "Hunt (Claim + Quick Hunt free + x5)",
       "in_main_loop": true,
-      "verified": true,
+      "verified": false,
       "cli": "python -m bot.cli daily hunt",
       "verified_at": "2026-06-10T15:13:15"
     },
@@ -189,5 +231,5 @@
       "cli": "python -m bot.cli daily trophy"
     }
   },
-  "period_start": "2026-06-09T21:00:00"
+  "period_start": "2026-06-16T21:00:00"
 }

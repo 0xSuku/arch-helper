@@ -83,6 +83,8 @@ def cmd_daily(args: argparse.Namespace) -> None:
         force=args.force or explicit,
         recover_emulator=args.recover_emulator,
         arena_fights=getattr(args, "arena_fights", None),
+        arena_max_power=getattr(args, "arena_max_power", None),
+        rune_ruins_keys=getattr(args, "rune_ruins_keys", None),
     )
     if args.mark:
         path.mark_verified(args.mark)
@@ -297,7 +299,35 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="N",
         help="Peleas Arena por run (default 2). Solo aplica a claim arena/events.",
     )
+    p_daily.add_argument(
+        "--arena-max-power",
+        type=float,
+        default=None,
+        metavar="M",
+        help="Poder maximo rival en millones (default 5.0). Solo pelea rivales debajo.",
+    )
+    p_daily.add_argument(
+        "--rune-ruins-keys",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Llaves a gastar en Rune Ruins (multiplo de 5). Ej: 30 = 6 x5.",
+    )
     p_daily.set_defaults(func=cmd_daily)
+
+    p_test = sub.add_parser("test", help="Testing con screenshots (fixtures)")
+    p_test.add_argument(
+        "action",
+        choices=("list", "capture", "vision", "flows", "flow"),
+        help="list/capture/vision/flows/flow",
+    )
+    p_test.add_argument("name", nargs="?", help="Nombre fixture o flow id")
+    p_test.add_argument(
+        "--live",
+        action="store_true",
+        help="Con flow: ejecuta en emulador conectado",
+    )
+    p_test.set_defaults(func=cmd_test)
 
     p_emu = sub.add_parser("emulator", help="Control del emulador (MuMu / LDPlayer)")
     p_emu.add_argument(
@@ -384,6 +414,100 @@ def build_parser() -> argparse.ArgumentParser:
     p_panel.set_defaults(func=cmd_panel)
 
     return parser
+
+
+def cmd_test(args: argparse.Namespace) -> None:
+    from .testing.fixtures import list_fixtures, save_fixture
+
+    if args.action == "list":
+        items = list_fixtures()
+        if not items:
+            print("Sin fixtures en tests/fixtures/screens/")
+            return
+        print("Fixtures:")
+        for item in items:
+            print(f"  {item}")
+        return
+
+    if args.action == "capture":
+        if not args.name:
+            log.error("Uso: python -m bot.cli test capture arena/opponents_popup")
+            sys.exit(2)
+        device = _connect()
+        img = device.screenshot()
+        path = save_fixture(img, *args.name.split("/"))
+        print(f"Guardado: {path}")
+        return
+
+    if args.action == "vision":
+        from . import vision
+
+        name = args.name or "arena/opponents_popup"
+        from .testing.fixtures import load_fixture
+
+        try:
+            screen = load_fixture(*name.split("/"))
+        except FileNotFoundError:
+            log.error("Fixture no encontrado: %s", name)
+            sys.exit(2)
+        print(f"Fixture: {name}")
+        print(f"  arena popup: {vision.is_arena_opponents_popup(screen)}")
+        rows = vision.find_arena_power_row_ys(screen)
+        print(f"  filas rivales: {rows}")
+        for i in range(min(5, len(rows))):
+            power = vision.read_arena_opponent_power(screen, i)
+            print(f"  rival #{i + 1} poder: {power if power is not None else '?'}M")
+        return
+
+    if args.action == "flows":
+        from .testing.flows import COMBAT_FLOWS
+
+        print("Flujos de combate registrados:")
+        for spec in COMBAT_FLOWS:
+            claim = spec.claim or "(play/farm)"
+            print(f"  {spec.flow_id}: {spec.label} -> daily {claim}")
+        print("\nMock: python -m bot.cli test flow arena")
+        print("Live: python -m bot.cli test flow arena --live")
+        return
+
+    if args.action == "flow":
+        from .testing.flows import COMBAT_FLOWS, flow_by_id, run_live_flow, run_mock_flow
+
+        flow_id = args.name
+        if not flow_id:
+            print("Flujos:", ", ".join(f.flow_id for f in COMBAT_FLOWS))
+            sys.exit(2)
+        if flow_by_id(flow_id) is None:
+            log.error("Flow desconocido: %s", flow_id)
+            sys.exit(2)
+        if args.live:
+            device = _connect()
+            ctx = BotContext(device)
+            result = run_live_flow(flow_id, ctx)
+        else:
+            from .testing.fixtures import load_fixture
+
+            lobby = None
+            battle = None
+            try:
+                lobby = load_fixture(flow_id, "lobby.png")
+            except FileNotFoundError:
+                pass
+            try:
+                battle = load_fixture(flow_id, "battle.png")
+            except FileNotFoundError:
+                pass
+            result = run_mock_flow(flow_id, lobby_factory=lambda: lobby, battle_factory=lambda: battle)
+        status = "OK" if result.ok else "FAIL"
+        print(f"[{status}] flow={result.flow_id} combat={result.entered_combat} lobby={result.returned_lobby}")
+        if result.error:
+            print(f"  error: {result.error}")
+        if not result.ok:
+            sys.exit(1)
+        return
+
+    log.error("Accion desconocida: %s", args.action)
+    sys.exit(2)
 
 
 def cmd_panel(args: argparse.Namespace) -> None:

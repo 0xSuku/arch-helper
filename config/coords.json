@@ -198,7 +198,23 @@
 
     "arena_confirm": { "x": 450, "y": 1375, "label": "Confirm (Victory post-arena)" },
 
-    "arena_power_3": { "x": 190, "y": 878, "w": 85, "h": 28, "label": "OCR poder rival #3 (ej. 5.41M)" }
+    "arena_power_3": { "x": 190, "y": 878, "w": 85, "h": 28, "label": "OCR poder rival #3 (ej. 5.41M)" },
+
+    "rumble_ladder_banner": { "x": 450, "y": 280, "label": "Banner Rumble Ladder (Challenge tab)" },
+
+    "rumble_ladder_start": { "x": 450, "y": 1264, "label": "Start Rumble Ladder (calibrar)" },
+
+    "seal_battle_banner": { "x": 450, "y": 480, "label": "Banner Seal Battle (Challenge tab)" },
+
+    "seal_battle_start": { "x": 450, "y": 1264, "label": "Start Seal Battle (calibrar)" },
+
+    "monster_invasion_banner": { "x": 450, "y": 680, "label": "Banner Monster Invasion (Challenge tab)" },
+
+    "monster_invasion_start": { "x": 450, "y": 1264, "label": "Start Monster Invasion (calibrar)" },
+
+    "magic_plant_defense_banner": { "x": 450, "y": 880, "label": "Banner Magic Plant Defense (Challenge tab)" },
+
+    "magic_plant_defense_start": { "x": 450, "y": 1264, "label": "Start Magic Plant Defense (calibrar)" }
 
   },
 
@@ -425,6 +441,24 @@
       { "x": 743, "y": 723, "label": "Tap elegir carta derecha" }
 
     ]
+
+  },
+
+  "rune_ruins": {
+
+    "entry": { "x": 450, "y": 900, "label": "Entrada Rune Ruins (Camp/Trophy — calibrar)" },
+
+    "chest_right": { "x": 620, "y": 760, "label": "Cofre derecho (fondo marron)" },
+
+    "x5_open": { "x": 450, "y": 1280, "label": "Boton Open x5" },
+
+    "pick_row_1": { "x": 450, "y": 1420, "label": "Fila picks inferior (centro)" },
+
+    "pick_row_2": { "x": 450, "y": 1520, "label": "Segunda fila picks (si aplica)" },
+
+    "confirm_pick": { "x": 450, "y": 1375, "label": "Confirmar pick / continuar" },
+
+    "dismiss_rewards": { "x": 450, "y": 1552, "label": "Cerrar rewards" }
 
   }
 

@@ -431,6 +431,117 @@ def _find_arena_power_row_ys_scan(screen: np.ndarray) -> list[int]:
     return filtered
 
 
+ARENA_POWER_PATCH_X = 175
+ARENA_POWER_PATCH_Y_OFF = -18
+ARENA_POWER_PATCH_W = 95
+ARENA_POWER_PATCH_H = 36
+ARENA_DIGITS_DIR = TEMPLATES / "arena" / "digits"
+
+
+def _load_arena_digit_templates() -> dict[str, np.ndarray]:
+    templates: dict[str, np.ndarray] = {}
+    if not ARENA_DIGITS_DIR.exists():
+        return templates
+    for path in sorted(ARENA_DIGITS_DIR.glob("*.png")):
+        img = cv2.imread(str(path), cv2.IMREAD_GRAYSCALE)
+        if img is not None:
+            templates[path.stem] = img
+    return templates
+
+
+def _arena_power_patch(screen: np.ndarray, row_y: int) -> np.ndarray:
+    return crop(
+        screen,
+        (
+            ARENA_POWER_PATCH_X,
+            row_y + ARENA_POWER_PATCH_Y_OFF,
+            ARENA_POWER_PATCH_W,
+            ARENA_POWER_PATCH_H,
+        ),
+    )
+
+
+def _arena_power_bw(patch: np.ndarray) -> np.ndarray:
+    gray = cv2.cvtColor(patch, cv2.COLOR_BGR2GRAY)
+    _, bw = cv2.threshold(gray, 120, 255, cv2.THRESH_BINARY_INV)
+    return bw
+
+
+def _arena_sliding_chars(
+    bw: np.ndarray,
+    templates: dict[str, np.ndarray],
+    *,
+    min_conf: float = 0.58,
+) -> list[str]:
+    detections: list[tuple[int, str, float, int]] = []
+    for ch, tpl in templates.items():
+        if ch == "dot":
+            continue
+        th, tw = tpl.shape[:2]
+        if tw > bw.shape[1] or th > bw.shape[0]:
+            continue
+        res = cv2.matchTemplate(bw, tpl, cv2.TM_CCOEFF_NORMED)
+        for x in range(res.shape[1]):
+            conf = float(res[0, x])
+            if conf >= min_conf:
+                detections.append((x, ch, conf, tw))
+    detections.sort(key=lambda item: (-item[2], item[0]))
+    picked: list[tuple[int, str, float]] = []
+    for x, ch, conf, tw in detections:
+        if any(abs(x - px) < max(8, tw - 2) for px, _, _ in picked):
+            continue
+        picked.append((x, ch, conf))
+    picked.sort(key=lambda item: item[0])
+    return [ch for _, ch, _ in picked]
+
+
+def _arena_chars_to_power(chars: list[str]) -> float | None:
+    if "M" in chars:
+        digits = [ch for ch in chars[: chars.index("M")] if ch.isdigit()]
+    else:
+        digits = [ch for ch in chars if ch.isdigit()]
+    if len(digits) >= 3:
+        digits = digits[:3]
+    if len(digits) < 2:
+        return None
+    num = "".join(digits)
+    try:
+        value = float(f"{num[0]}.{num[1:]}") if len(num) >= 3 else float(f"{num[0]}.{num[1]}")
+    except ValueError:
+        return None
+    return value if 0.01 <= value <= 99.99 else None
+
+
+def read_arena_power_patch(patch: np.ndarray) -> float | None:
+    templates = _load_arena_digit_templates()
+    if not templates:
+        return None
+    bw = _arena_power_bw(patch)
+    if int((bw > 0).sum()) < 40:
+        return None
+    chars = _arena_sliding_chars(bw, templates)
+    return _arena_chars_to_power(chars)
+
+
+def is_arena_opponents_popup(screen: np.ndarray) -> bool:
+    try:
+        if matches(
+            screen,
+            "anchors/arena_opponents_popup.png",
+            threshold=0.72,
+            region=ARENA_POPUP_TITLE_REGION,
+        ):
+            return True
+        refresh = find_template(
+            screen,
+            "anchors/arena_free_refresh.png",
+            region=(200, 1210, 500, 90),
+        )
+        return refresh.confidence >= 0.62
+    except FileNotFoundError:
+        return False
+
+
 def read_arena_opponent_power(
     screen: np.ndarray,
     row_index: int,
@@ -438,12 +549,24 @@ def read_arena_opponent_power(
     region_width: int = 85,
     region_height: int = 28,
 ) -> float | None:
+    _ = region_width
+    _ = region_height
     rows = find_arena_power_row_ys(screen)
     if len(rows) <= row_index:
         return None
-    y = rows[row_index] - region_height // 2
-    region = (ARENA_POWER_ROW_SCAN[0], y, region_width, region_height)
-    return _read_arena_power_first_digit(screen, region)
+    patch = _arena_power_patch(screen, rows[row_index])
+    value = read_arena_power_patch(patch)
+    if value is not None:
+        return value
+    return _read_arena_power_first_digit(
+        screen,
+        (
+            ARENA_POWER_ROW_SCAN[0],
+            rows[row_index] - region_height // 2,
+            region_width,
+            region_height,
+        ),
+    )
 
 
 ARENA_FIRST_DIGIT_DIR = TEMPLATES / "arena"

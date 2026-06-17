@@ -113,12 +113,17 @@ class PlayLevelPath:
         dodge: bool = False,
         skills_only: bool = False,
         afk_only: bool = False,
+        circle_move: bool | None = None,
+        survival_only: bool = False,
     ) -> None:
         self.ctx = ctx
         self.level = level
         self.dodge = dodge
         self.skills_only = skills_only
         self.afk_only = afk_only
+        self.survival_only = survival_only
+        self.circle_move = survival_only or afk_only if circle_move is None else circle_move
+        self._saw_battle = False
         # games=None -> jugar hasta agotar energía (modo farmeo).
         self.games = games
         self.until_no_energy = games is None
@@ -433,11 +438,80 @@ class PlayLevelPath:
         return False
 
     def _fight(self) -> str:
+        if self.survival_only:
+            return self._fight_survival_only()
         if self.afk_only:
             return self._fight_afk_only()
         if self.skills_only:
             return self._fight_skills_only()
         return self._fight_standard()
+
+    def fight_verified(self) -> tuple[str, bool]:
+        result = self._fight()
+        verified = self._saw_battle and result in ("victory", "defeat")
+        return result, verified
+
+    def _fight_survival_only(self) -> str:
+        from ..combat_prompts import event_challenge_end, find_reject_button
+
+        timeout = BattleTimeout(self.battle_timeout)
+        end_streak = 0
+        circle_phase = 0
+
+        while True:
+            self.ctx.kill.check()
+            if timeout.expired():
+                log.warning("BattleTimeout (%.0fs) alcanzado", self.battle_timeout)
+                return "timeout"
+
+            screen = self.ctx.device.screenshot()
+
+            if find_reject_button(screen) is not None:
+                self._handle_pact_reject(screen)
+                end_streak = 0
+                continue
+
+            sid = screens.identify_combat(screen)
+
+            if sid == ScreenId.BATTLE:
+                self._saw_battle = True
+
+            if sid == ScreenId.SKILL_SELECT:
+                self._pick_skill(screen)
+                end_streak = 0
+                continue
+            if sid == ScreenId.DEVIL_DEAL:
+                self._handle_devil_deal()
+                end_streak = 0
+                continue
+            if sid == ScreenId.VICTORY:
+                return "victory"
+            if sid == ScreenId.DEFEAT:
+                return "defeat"
+            if sid == ScreenId.ROULETTE:
+                self._handle_roulette()
+                end_streak = 0
+                continue
+            if sid == ScreenId.BATTLE:
+                self._circle_move(circle_phase)
+                circle_phase += 1
+                if event_challenge_end(screen):
+                    end_streak += 1
+                    if end_streak >= 2:
+                        return "defeat"
+                else:
+                    end_streak = 0
+                sleep(0.65)
+                continue
+
+            if event_challenge_end(screen):
+                end_streak += 1
+                if end_streak >= 2:
+                    return "defeat"
+            else:
+                end_streak = 0
+
+            sleep(0.5)
 
     def _fight_afk_only(self) -> str:
         """Dungeon AFK (Abyssal Tide): espera en combate; elige skill si aparece level-up."""
@@ -445,6 +519,7 @@ class PlayLevelPath:
 
         timeout = BattleTimeout(self.battle_timeout)
         end_streak = 0
+        circle_phase = 0
 
         while True:
             self.ctx.kill.check()
@@ -478,6 +553,10 @@ class PlayLevelPath:
                 end_streak = 0
                 continue
             if sid == ScreenId.BATTLE:
+                self._saw_battle = True
+                if self.circle_move:
+                    self._circle_move(circle_phase)
+                    circle_phase += 1
                 if event_challenge_end(screen):
                     end_streak += 1
                     if end_streak >= 2:
@@ -495,6 +574,18 @@ class PlayLevelPath:
                 end_streak = 0
 
             sleep(0.5)
+
+    def _circle_move(self, phase: int) -> None:
+        try:
+            origin = self.ctx.coords.point("battle", "grab_up_from")
+            ax, ay = origin.x, origin.y
+        except ValueError:
+            ax, ay = 450, 1250
+        angle = (phase % 4) * (math.pi / 2)
+        radius = min(JOYSTICK_RADIUS, 220)
+        bx = int(ax + radius * math.cos(angle))
+        by = int(ay + radius * math.sin(angle))
+        self.ctx.swipe(ax, ay, bx, by, duration_ms=420, settle=0.05)
 
     def _fight_skills_only(self) -> str:
         """Shackled Jungle: solo elegir skills, idle entre level-ups."""
