@@ -20,6 +20,10 @@ robocopy $Root $Stage /E /NFL /NDL /NJH /NJS /nc /ns /np `
     /XD $ExcludeDirs `
     /XF *.pyc *.pyo *.log STOP .env | Out-Null
 
+Copy-Item (Join-Path $Root "release\Instalar.cmd") (Join-Path $Stage "Instalar.cmd") -Force
+Copy-Item (Join-Path $Root "release\Iniciar-Panel.cmd") (Join-Path $Stage "Iniciar-Panel.cmd") -Force
+Copy-Item (Join-Path $Root "release\LEEME-INSTALACION.md") (Join-Path $Stage "LEEME-INSTALACION.md") -Force
+
 if (Test-Path $ZipPath) { Remove-Item $ZipPath -Force }
 Compress-Archive -Path (Join-Path $Stage "*") -DestinationPath $ZipPath -Force
 Remove-Item $Stage -Recurse -Force
