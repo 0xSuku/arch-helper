@@ -107,11 +107,11 @@ Only one `farm`/`play` run can be active at a time.
 Para usuarios **sin experiencia técnica**, usá el ZIP de [GitHub Releases](https://github.com/0xSuku/arch-helper/releases):
 
 1. Descomprimí el ZIP
-2. Ejecutá `release\Instalar.cmd` (una sola vez)
+2. Ejecutá `Instalar.cmd` (una sola vez)
 3. Abrí MuMu + Archero 2 en el lobby
-4. Ejecutá `release\Iniciar-Panel.cmd`
+4. Ejecutá `Iniciar-Panel.cmd`
 
-Guía completa en español: [`release/LEEME-INSTALACION.md`](release/LEEME-INSTALACION.md)
+Guía completa en español: `LEEME-INSTALACION.md` (incluida en la raíz del ZIP)
 
 Para generar el ZIP localmente:
 
