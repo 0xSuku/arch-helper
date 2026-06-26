@@ -1,10 +1,11 @@
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
-cd /d "%~dp0.."
+set "HERE=%~dp0"
+if exist "%HERE%bot\cli.py" (cd /d "%HERE%") else (cd /d "%HERE%..")
 title Arch Helper - Bot
 
 if not exist ".venv\Scripts\python.exe" (
-    echo Run install first: release\Install.cmd
+    echo Run install first: Install.cmd
     pause
     exit /b 1
 )
@@ -19,10 +20,10 @@ echo Presets: data\presets.json
 echo Recovery state: data\run-state.json
 echo.
 echo Examples:
-echo   release\Run-Bot.cmd 5-arena-farm
-echo   release\Run-Bot.cmd arena:5 farm:forever
-echo   release\Run-Bot.cmd --resume
-echo   release\Run-Bot.cmd --list
+echo   Run-Bot.cmd 5-arena-farm
+echo   Run-Bot.cmd arena:5 farm:forever
+echo   Run-Bot.cmd --resume
+echo   Run-Bot.cmd --list
 echo.
 
 if "%~1"=="" (

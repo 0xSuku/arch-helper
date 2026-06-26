@@ -11,9 +11,10 @@ Works with **MuMu Player 12** or **LDPlayer 9**. Emulator must be **portrait 900
 For most users, use the release from [GitHub Releases](https://github.com/0xSuku/arch-helper/releases):
 
 1. Unzip the archive into a folder (e.g. `C:\ArchHelper`)
-2. Run **`Install.cmd`** once (creates `.venv`, installs dependencies)
-3. Open **MuMu** (or LDPlayer), launch **Archero 2**, and stay on the **campaign lobby**
-4. Run **`Start-Panel.cmd`** — browser opens at `http://127.0.0.1:8765`
+2. Run **`Install.cmd`** once — creates `.venv`, installs dependencies, and copies **`.env.example`** → **`.env`** if needed
+3. Open **`.env`** only if your emulator path or ADB port differs from the defaults
+4. Open **MuMu** (or LDPlayer), launch **Archero 2**, and stay on the **campaign lobby**
+5. Run **`Start-Panel.cmd`** — browser opens at `http://127.0.0.1:8765`
 
 **First time in the panel**
 
@@ -87,7 +88,8 @@ cd arch-helper
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-Copy-Item .env.example .env   # edit emulator path if needed
+Copy-Item .env.example .env   # same as Install.cmd on first setup
+notepad .env                  # edit emulator path / ADB port if needed
 ```
 
 **Run the panel**
@@ -126,7 +128,8 @@ python -m unittest discover -s tests -v
 
 | Path | Purpose |
 |------|---------|
-| `.env` | Emulator path, ADB port, game package |
+| `.env` | Emulator path, ADB port, game package (created from `.env.example` on install) |
+| `.env.example` | Template copied to `.env` by `Install.cmd` |
 | `config/coords.json` | Tap regions and UI anchors |
 | `config/daily-claims.json` | Daily claim definitions |
 | `config/skills.json` | Skill scores and categories |

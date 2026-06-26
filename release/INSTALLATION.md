@@ -18,9 +18,9 @@ Local bot for Archero 2. **Not online cheating**: it only automates taps on your
 1. Unzip the release into a folder, e.g. `C:\ArchHelper`
 2. Double-click **`Install.cmd`**  
    - Creates the Python environment and installs dependencies (first time only)
+   - Creates **`.env`** from **`.env.example`** if you do not have one yet
    - If Python is missing, the script tells you
-3. On first run, edit **`.env`** if your MuMu path differs  
-   (copy from `.env.example` if `.env` does not exist)
+3. Open **`.env`** in Notepad only if your MuMu path or ADB port differs from the defaults
 
 ## Daily use — desktop panel
 
@@ -54,6 +54,8 @@ If a step fails, the bot saves state in **`data/run-state.json`**, restarts the 
 Default presets: `5-arena-farm`, `arena-farm`, `shackled-2`, `daily-main`, `arena-shackled-farm`.
 
 ## Emulator configuration (`.env`)
+
+`Install.cmd` copies **`.env.example`** → **`.env`** on first install. You usually only need to edit `.env` if MuMu/LDPlayer is not in the default folder or uses a non-default ADB port.
 
 Open `.env` in Notepad. Typical MuMu values:
 

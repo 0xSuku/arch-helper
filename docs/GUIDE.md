@@ -55,8 +55,8 @@ To discard saved state: **Discard saved state** in the panel or `python -m bot.c
 ### First-time install (ZIP release)
 
 1. Unzip the release folder.
-2. Run **`Install.cmd`** once.
-3. Edit **`.env`** if MuMu is not in the default path.
+2. Run **`Install.cmd`** once (creates `.venv`, `.env`, and `data/`).
+3. Edit **`.env`** only if MuMu is not in the default path.
 4. Open game on lobby → **`Start-Panel.cmd`**.
 
 See **`INSTALLATION.md`** for full install and troubleshooting.
@@ -175,7 +175,7 @@ python -m bot.cli calibrate --read-arena-power
 
 | Path | Purpose |
 |------|---------|
-| `.env` | Emulator path, ADB port, game package |
+| `.env` | Emulator path, ADB port, game package (from `.env.example` on install) |
 | `data/presets.json` | Your saved routine presets |
 | `data/run-state.json` | Interrupted run (resume) |
 | `config/coords.json` | Tap coordinates (900×1600) |

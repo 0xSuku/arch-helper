@@ -1,10 +1,11 @@
 @echo off
 setlocal EnableExtensions
-cd /d "%~dp0.."
+set "HERE=%~dp0"
+if exist "%HERE%bot\cli.py" (cd /d "%HERE%") else (cd /d "%HERE%..")
 title Arch Helper - Panel
 
 if not exist ".venv\Scripts\python.exe" (
-    echo Run install first: release\Install.cmd
+    echo Run install first: Install.cmd
     pause
     exit /b 1
 )

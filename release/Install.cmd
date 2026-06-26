@@ -1,6 +1,7 @@
 @echo off
 setlocal EnableExtensions
-cd /d "%~dp0.."
+set "HERE=%~dp0"
+if exist "%HERE%bot\cli.py" (cd /d "%HERE%") else (cd /d "%HERE%..")
 title Arch Helper - Install
 
 echo.
@@ -39,17 +40,24 @@ if errorlevel 1 (
     exit /b 1
 )
 
+if not exist "data" mkdir "data" >nul 2>&1
+
 if not exist ".env" (
     if exist ".env.example" (
         copy /Y ".env.example" ".env" >nul
-        echo Created .env from .env.example - check MuMu path if needed.
+        echo.
+        echo Created .env from .env.example
+        echo Edit .env if your MuMu/LDPlayer path or ADB port is different.
+    ) else (
+        echo [WARN] .env.example not found - create .env manually.
     )
+) else (
+    echo .env already exists - left unchanged.
 )
 
 echo.
 echo [OK] Install complete.
 echo.
-echo Next: open MuMu + Archero 2 on the lobby, then run:
-echo   release\Start-Panel.cmd
+echo Next: open MuMu + Archero 2 on the lobby, then run Start-Panel.cmd
 echo.
 pause
