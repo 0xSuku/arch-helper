@@ -1,4 +1,4 @@
-"""Carga de configuración (coords y skills) desde config/*.json."""
+"""Load configuration (coords and skills) from config/*.json."""
 from __future__ import annotations
 
 import json
@@ -22,7 +22,7 @@ class Point:
 
 def _load(path: Path) -> dict[str, Any]:
     if not path.exists():
-        raise FileNotFoundError(f"Falta archivo de configuración: {path}")
+        raise FileNotFoundError(f"Missing configuration file: {path}")
     return json.loads(path.read_text(encoding="utf-8"))
 
 
@@ -38,15 +38,15 @@ class Coords:
         try:
             return self._data[section][key]
         except KeyError as exc:
-            raise KeyError(f"Coordenada no definida: {section}.{key}") from exc
+            raise KeyError(f"Coordinate not defined: {section}.{key}") from exc
 
     def point(self, section: str, key: str) -> Point:
         raw = self.raw(section, key)
         x, y = int(raw.get("x", 0)), int(raw.get("y", 0))
         if x <= 0 or y <= 0:
             raise ValueError(
-                f"Punto sin calibrar: {section}.{key} (= {x},{y}). "
-                f"Ejecutá 'python -m bot.cli calibrate' para registrarlo."
+                f"Uncalibrated point: {section}.{key} (= {x},{y}). "
+                f"Run 'python -m bot.cli calibrate' to register it."
             )
         return Point(x, y, str(raw.get("label", "")))
 

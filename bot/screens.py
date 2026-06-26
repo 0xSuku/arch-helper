@@ -1,8 +1,8 @@
-"""Identificación de pantalla actual mediante templates ancla.
+"""Identify the current screen via anchor templates.
 
-Cada pantalla se reconoce por uno o más templates en templates/anchors/.
-Si el template no existe todavía (pre-calibración), esa pantalla se omite
-y identify() puede devolver UNKNOWN; el watchdog lo maneja.
+Each screen is recognized by one or more templates in templates/anchors/.
+If a template does not exist yet (pre-calibration), that screen is skipped
+and identify() may return UNKNOWN; the watchdog handles it.
 """
 from __future__ import annotations
 
@@ -24,10 +24,13 @@ class ScreenId(str, Enum):
     VICTORY = "victory"
     DEFEAT = "defeat"
     POPUP = "popup"
+    ARENA_PERSONAL_INFO = "arena_personal_info"
+    ARENA_OPPONENTS = "arena_opponents"
+    ARENA_LEADERBOARD = "arena_leaderboard"
     UNKNOWN = "unknown"
 
 
-# Cada pantalla -> lista de anchors (filename relativo a templates/anchors/)
+# Each screen -> anchor list (filename relative to templates/anchors/)
 ANCHORS: dict[ScreenId, list[str]] = {
     ScreenId.LOBBY: ["anchors/lobby.png"],
     ScreenId.LEVEL_SELECT: ["anchors/level_select.png"],
@@ -50,8 +53,8 @@ ANCHOR_REGIONS: dict[str, vision.Region] = {
     "anchors/challenge_ended.png": (60, 240, 780, 180),
 }
 
-# Orden de chequeo: las pantallas modales (skill/devil/victory/defeat/popup)
-# priman sobre las de fondo (battle/lobby) para no confundirlas.
+# Check order: modal screens (skill/devil/victory/defeat/popup)
+# take priority over background (battle/lobby) to avoid confusion.
 CHECK_ORDER = [
     ScreenId.SKILL_SELECT,
     ScreenId.DEVIL_DEAL,
@@ -64,7 +67,7 @@ CHECK_ORDER = [
     ScreenId.LOBBY,
 ]
 
-# Solo pantallas relevantes durante combate (evita chequear lobby/mapa en cada loop).
+# Combat-relevant screens only (avoids checking lobby/map every loop).
 COMBAT_CHECK_ORDER = [
     ScreenId.SKILL_SELECT,
     ScreenId.DEVIL_DEAL,
@@ -83,6 +86,21 @@ _MODAL_SCREENS = frozenset({
 })
 
 DEFAULT_THRESHOLD = 0.78
+
+
+def identify_arena(screen: np.ndarray) -> ScreenId | None:
+    try:
+        if vision.matches(screen, "anchors/lobby.png", threshold=0.72):
+            return None
+    except FileNotFoundError:
+        pass
+    if vision.is_arena_personal_info_overlay(screen):
+        return ScreenId.ARENA_PERSONAL_INFO
+    if vision.is_arena_opponents_popup(screen):
+        return ScreenId.ARENA_OPPONENTS
+    if vision.is_arena_leaderboard(screen):
+        return ScreenId.ARENA_LEADERBOARD
+    return None
 
 
 def _identify_from_order(
@@ -108,6 +126,9 @@ def _identify_from_order(
 
 
 def identify(screen: np.ndarray, threshold: float = DEFAULT_THRESHOLD) -> ScreenId:
+    arena = identify_arena(screen)
+    if arena is not None:
+        return arena
     return _identify_from_order(screen, CHECK_ORDER, threshold, early_modal=True)
 
 

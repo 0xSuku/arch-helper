@@ -1,107 +1,192 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Archero v2 Bot — Panel</title>
+  <title>Arch Helper — Panel</title>
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
   <header class="topbar">
     <div>
-      <h1>Archero v2 Bot</h1>
-      <p class="subtitle">Panel de control local</p>
+      <h1>Arch Helper</h1>
+      <p class="subtitle">Build your routine, run it in sequence</p>
     </div>
     <div class="status-pills" id="status-pills">
-      <span class="pill" id="pill-screen">Pantalla …</span>
-      <span class="pill" id="pill-ld">Emulador …</span>
+      <span class="pill" id="pill-screen">Screen …</span>
+      <span class="pill" id="pill-ld">Emulator …</span>
       <span class="pill" id="pill-adb">ADB …</span>
       <span class="pill" id="pill-job">Idle</span>
     </div>
   </header>
 
   <main class="layout">
-    <section class="card card-danger">
-      <h2>Parada de emergencia</h2>
-      <p>Crea el archivo <code>STOP</code> para cortar el bot antes de la siguiente acción.</p>
-      <div class="row">
-        <button class="btn btn-stop" id="btn-stop">STOP</button>
-        <button class="btn btn-ghost" id="btn-clear-stop">Quitar STOP</button>
+    <section class="card card-wide card-hero" id="chain-builder">
+      <div class="hero-head">
+        <div>
+          <h2>Your routine</h2>
+          <p class="hint">Pick actions, order them, and run in sequence. On failure the bot saves state and can restart the game.</p>
+        </div>
+        <div class="preview-box" id="chain-preview">No steps</div>
+      </div>
+
+      <div class="chain-layout">
+        <aside class="catalog-panel">
+          <h3>Library</h3>
+          <div class="catalog-tabs" id="catalog-tabs"></div>
+          <div class="catalog-list" id="catalog-list"></div>
+        </aside>
+
+        <section class="chain-panel">
+          <div class="chain-panel-head">
+            <h3>Chain <span class="muted" id="chain-count">(0 steps)</span></h3>
+            <button type="button" class="btn btn-ghost btn-sm" id="btn-chain-clear">Clear</button>
+          </div>
+          <ol class="chain-list" id="chain-list"></ol>
+          <p class="chain-empty hint" id="chain-empty">Add actions from the library. Toggle each step on or off without removing it.</p>
+        </section>
+
+        <aside class="run-panel">
+          <h3>Run</h3>
+
+          <label class="field-label" for="preset-select">Saved preset</label>
+          <select class="field-select" id="preset-select">
+            <option value="">— Choose preset —</option>
+          </select>
+
+          <label class="check"><input type="checkbox" id="opt-recover" checked /> Auto recovery (restart game on failure)</label>
+          <label class="check"><input type="checkbox" id="opt-force" /> Force daily claims</label>
+
+          <div class="run-actions">
+            <button type="button" class="btn btn-accent btn-lg" id="btn-run-chain">▶ Run chain</button>
+            <button type="button" class="btn btn-primary" id="btn-resume" hidden>↻ Resume pending</button>
+          </div>
+
+          <div class="pending-state" id="pending-state" hidden>
+            <h4>Interrupted run</h4>
+            <ul class="pending-steps" id="pending-steps"></ul>
+            <button type="button" class="btn btn-ghost btn-sm" id="btn-clear-state">Discard saved state</button>
+          </div>
+
+          <hr class="divider" />
+
+          <label class="field-label" for="save-preset-id">Save as preset</label>
+          <input class="field-input" id="save-preset-id" placeholder="my-routine" />
+          <input class="field-input" id="save-preset-name" placeholder="Display name" />
+          <button type="button" class="btn btn-sm" id="btn-save-preset">Save preset</button>
+        </aside>
       </div>
     </section>
 
-    <section class="card">
-      <h2>Opciones daily</h2>
-      <label class="check"><input type="checkbox" id="opt-force" /> Force (ignorar checks verificados)</label>
-      <label class="check"><input type="checkbox" id="opt-recover" /> Recover emulador (guild legacy)</label>
-    </section>
-
-    <section class="card card-wide">
-      <h2>Automatizaciones</h2>
-      <p class="hint">Agrupadas por confianza. Editá <code>tier</code> en <code>config/daily-claims.json</code>.</p>
-      <div id="task-groups"></div>
-    </section>
-
-    <section class="card">
-      <h2>Emulador</h2>
-      <div class="grid">
-        <button class="btn" data-job="emulator_launch">Abrir emulador</button>
-        <button class="btn btn-primary" data-job="emulator_open_game">Abrir juego</button>
-        <button class="btn btn-primary" data-job="emulator_reconnect">Reconectar ADB</button>
-        <button class="btn btn-warn" data-job="emulator_reboot">Reiniciar emulador</button>
+    <details class="card card-wide collapsible" id="guide-section">
+      <summary>Guide <span class="summary-hint">— basic usage, then advanced</span></summary>
+      <div class="details-body">
+        <div class="guide-toolbar">
+          <div class="guide-tabs" role="tablist">
+            <button type="button" class="guide-tab active" data-guide-tab="basic" role="tab" aria-selected="true">Basic usage</button>
+            <button type="button" class="guide-tab" data-guide-tab="advanced" role="tab" aria-selected="false">Advanced</button>
+          </div>
+        </div>
+        <div class="guide-panel active" id="guide-basic" role="tabpanel"></div>
+        <div class="guide-panel" id="guide-advanced" role="tabpanel" hidden></div>
       </div>
-    </section>
+    </details>
 
-    <section class="card card-wide">
-      <div class="log-head">
-        <h2>Skills — puntajes</h2>
-        <div class="row">
-          <button class="btn btn-ghost btn-sm" id="btn-skills-refresh">Actualizar</button>
-          <button class="btn btn-sm" data-job="skills_scan">Scan in-game</button>
+    <details class="card card-wide collapsible">
+      <summary>Emulator &amp; stop</summary>
+      <div class="details-body">
+        <div class="grid-2">
+          <div>
+            <h3>Emulator</h3>
+            <div class="grid">
+              <button type="button" class="btn" data-job="emulator_launch">Launch emulator</button>
+              <button type="button" class="btn btn-primary" data-job="emulator_open_game">Open game</button>
+              <button type="button" class="btn btn-primary" data-job="emulator_reconnect">Reconnect ADB</button>
+              <button type="button" class="btn btn-warn" data-job="emulator_reboot">Reboot emulator</button>
+            </div>
+          </div>
+          <div>
+            <h3>Emergency stop</h3>
+            <p class="hint">Creates a <code>STOP</code> file to halt before the next action.</p>
+            <div class="row">
+              <button type="button" class="btn btn-stop" id="btn-stop">STOP</button>
+              <button type="button" class="btn btn-ghost" id="btn-clear-stop">Clear STOP</button>
+            </div>
+          </div>
         </div>
       </div>
-      <p class="hint">Editá nombre, categoría, grupo y score. Guardar renombra templates o etiqueta entradas del catálogo.</p>
-      <div class="pending-skills" id="pending-skills"></div>
-      <div class="skills-table-wrap">
-        <table class="skills-table" id="skills-table">
-          <thead>
-            <tr>
-              <th>Nombre</th>
-              <th>Categoría</th>
-              <th>Grupo</th>
-              <th>Score</th>
-              <th>Origen</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="skills-body">
-            <tr><td colspan="6" class="muted-cell">Cargando…</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
+    </details>
 
-    <section class="card">
-      <h2>Herramientas</h2>
-      <div class="grid">
-        <button class="btn" data-job="calibrate_shot">Captura pantalla</button>
-        <button class="btn" data-job="calibrate_identify">Identificar pantalla</button>
-        <button class="btn" data-job="calibrate_read_floor">Leer piso mapa</button>
+    <details class="card card-wide collapsible">
+      <summary>Solo claims <span class="summary-hint">— single claim, not a chain</span></summary>
+      <div class="details-body">
+        <p class="hint">For combined routines use the chain above. Run one daily claim at a time here.</p>
+        <div id="solo-claims"></div>
       </div>
-    </section>
+    </details>
 
-    <section class="card card-wide">
-      <h2>Checks diarios</h2>
-      <pre class="mono small" id="daily-status">Cargando…</pre>
-    </section>
-
-    <section class="card card-wide">
-      <div class="log-head">
-        <h2>Log</h2>
-        <button class="btn btn-ghost btn-sm" id="btn-refresh-log">Actualizar</button>
+    <details class="card card-wide collapsible" id="skills-section">
+      <summary>Skill scores <span class="summary-hint">— scores, grouping, catalog images</span></summary>
+      <div class="details-body skills-body">
+        <div class="skills-toolbar">
+          <p class="hint">Edit scores, group duplicate images as the same skill, or delete bad captures.</p>
+          <div class="row">
+            <button type="button" class="btn btn-ghost btn-sm" id="btn-skills-refresh">Refresh</button>
+            <button type="button" class="btn btn-sm" data-job="skills_scan">Scan in-game</button>
+          </div>
+        </div>
+        <div class="pending-skills" id="pending-skills"></div>
+        <div class="skills-table-wrap">
+          <table class="skills-table" id="skills-table">
+            <colgroup>
+              <col class="col-thumb" />
+              <col class="col-name" />
+              <col class="col-category" />
+              <col class="col-group" />
+              <col class="col-score" />
+              <col class="col-source" />
+              <col class="col-actions" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Img</th>
+                <th>Name</th>
+                <th>Category</th>
+                <th>Group</th>
+                <th>Score</th>
+                <th>Source</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="skills-body">
+              <tr><td colspan="7" class="muted-cell">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
-      <pre class="log mono" id="log-view"></pre>
-    </section>
+    </details>
+
+    <details class="card collapsible">
+      <summary>Tools</summary>
+      <div class="details-body grid">
+        <button type="button" class="btn" data-job="calibrate_shot">Screenshot</button>
+        <button type="button" class="btn" data-job="calibrate_identify">Identify screen</button>
+        <button type="button" class="btn" data-job="calibrate_read_floor">Read campaign floor</button>
+      </div>
+    </details>
+
+    <details class="card card-wide collapsible" open>
+      <summary>Log &amp; daily checks</summary>
+      <div class="details-body">
+        <h3>Daily checks</h3>
+        <pre class="mono small" id="daily-status">Loading…</pre>
+        <div class="log-head">
+          <h3>Log</h3>
+          <button type="button" class="btn btn-ghost btn-sm" id="btn-refresh-log">Refresh</button>
+        </div>
+        <pre class="log mono" id="log-view"></pre>
+      </div>
+    </details>
   </main>
 
   <div class="toast" id="toast" hidden></div>

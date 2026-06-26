@@ -1,4 +1,4 @@
-"""Navegación consciente de pantalla: volver al lobby de campaña antes de tareas."""
+"""Screen-aware navigation: return to campaign lobby before tasks."""
 from __future__ import annotations
 
 import time
@@ -6,7 +6,7 @@ import time
 from .device import sleep
 from .log import get_logger
 from .paths.base import BotContext
-from .screens import ScreenId, is_lobby
+from .screens import ScreenId, identify, identify_arena, is_lobby
 
 log = get_logger("nav")
 
@@ -28,27 +28,61 @@ def is_combat_active(sid: ScreenId) -> bool:
     return sid in COMBAT_ACTIVE
 
 
+def _game_is_open(ctx: BotContext) -> bool:
+    try:
+        screen = ctx.device.screenshot()
+    except RuntimeError:
+        return False
+    if identify(screen) != ScreenId.UNKNOWN:
+        return True
+    if identify_arena(screen) is not None:
+        return True
+    return False
+
+
 def log_screen(ctx: BotContext, prefix: str = "") -> ScreenId:
     sid = ctx.current_screen()
-    msg = f"Pantalla actual: {sid.value}"
+    msg = f"Current screen: {sid.value}"
     if prefix:
         msg = f"{prefix} — {msg}"
     log.info(msg)
     return sid
 
 
+def _close_arena_if_needed(ctx: BotContext) -> bool:
+    sid = identify_arena(ctx.device.screenshot())
+    if sid == ScreenId.ARENA_PERSONAL_INFO:
+        log.info("Nav: closing Arena Personal Info")
+        ctx.back(settle=0.5)
+        return True
+    if sid == ScreenId.ARENA_OPPONENTS:
+        log.info("Nav: closing Challenge popup (back)")
+        ctx.back(settle=0.5)
+        return True
+    if sid == ScreenId.ARENA_LEADERBOARD:
+        log.info("Nav: leaving Arena leaderboard")
+        ctx.back(settle=0.4)
+        sleep(0.3)
+        try:
+            ctx.tap_point("nav", "campaign", money_check=False, settle=0.8)
+        except ValueError:
+            pass
+        return True
+    return False
+
+
 def ensure_campaign_lobby(ctx: BotContext, *, exit_combat: bool = False) -> bool:
-    """Vuelve al lobby de campaña (mapa principal). No interrumpe combate activo salvo exit_combat."""
+    """Return to campaign lobby (main map). Does not interrupt active combat unless exit_combat."""
     from .run_end_dismiss import dismiss_to_lobby, needs_post_run_dismiss
 
-    sid = log_screen(ctx, "Navegación")
+    sid = log_screen(ctx, "Navigation")
 
     if is_lobby(ctx.device.screenshot()):
         return True
 
     screen = ctx.device.screenshot()
     if needs_post_run_dismiss(screen):
-        log.info("Post-run detectado antes de navegar -> cerrar recompensas")
+        log.info("Post-run detected before navigation -> close rewards")
         if dismiss_to_lobby(ctx):
             return True
 
@@ -57,13 +91,13 @@ def ensure_campaign_lobby(ctx: BotContext, *, exit_combat: bool = False) -> bool
     if is_combat_active(sid):
         screen = ctx.device.screenshot()
         if needs_post_run_dismiss(screen):
-            log.info("Post-run sobre pantalla %s -> tap cerrar (no exit combat)", sid.value)
+            log.info("Post-run on screen %s -> tap close (no exit combat)", sid.value)
             return dismiss_to_lobby(ctx)
         if not exit_combat or getattr(ctx, "hold_combat", False):
             if getattr(ctx, "hold_combat", False):
-                log.info("Run en progreso (hold_combat); no navego")
+                log.info("Run in progress (hold_combat); not navigating")
             else:
-                log.warning("En combate activo (%s); no navego al lobby", sid.value)
+                log.warning("In active combat (%s); not navigating to lobby", sid.value)
             return False
         _exit_combat(ctx)
         sleep(1.0)
@@ -76,13 +110,13 @@ def ensure_campaign_lobby(ctx: BotContext, *, exit_combat: bool = False) -> bool
     for attempt in range(6):
         ctx.kill.check()
         if is_lobby(ctx.device.screenshot()):
-            log.info("Lobby de campaña alcanzado")
+            log.info("Campaign lobby reached")
             return True
         sid = ctx.current_screen()
         if is_combat_active(sid) and exit_combat:
             screen = ctx.device.screenshot()
             if needs_post_run_dismiss(screen):
-                log.info("Post-run en loop nav (%s) -> dismiss", sid.value)
+                log.info("Post-run in nav loop (%s) -> dismiss", sid.value)
                 dismiss_to_lobby(ctx, max_rounds=2)
                 sleep(1.0)
                 continue
@@ -92,11 +126,14 @@ def ensure_campaign_lobby(ctx: BotContext, *, exit_combat: bool = False) -> bool
         if sid in COMBAT_END:
             _dismiss_run_end(ctx)
             continue
+        if _close_arena_if_needed(ctx):
+            sleep(0.5)
+            continue
         _close_overlays(ctx, attempt)
 
     ok = is_lobby(ctx.device.screenshot())
     if not ok:
-        log.warning("No se confirmó lobby tras navegación (quedó en %s)", ctx.current_screen().value)
+        log.warning("Lobby not confirmed after navigation (stuck on %s)", ctx.current_screen().value)
     return ok
 
 
@@ -110,7 +147,7 @@ def ensure_game_lobby(
     max_launch_attempts: int = 2,
     allow_combat: bool = False,
 ) -> bool:
-    """Garantiza juego abierto y lobby visible antes de iniciar un bot."""
+    """Ensure game is open and lobby is visible before starting a bot."""
     from .emulator import EmulatorConsole
 
     def current_ready() -> bool:
@@ -122,12 +159,22 @@ def ensure_game_lobby(
             return True
         sid = ctx.current_screen()
         if allow_combat and is_combat_active(sid):
-            log.info("Run activa detectada (%s); listo para reanudar", sid.value)
+            log.info("Active run detected (%s); ready to resume", sid.value)
             return True
         return False
 
     def launch_and_wait(reason: str) -> bool:
-        log.warning("%s; abro el juego", reason)
+        if _game_is_open(ctx):
+            sid = ctx.current_screen()
+            log.info(
+                "Game already visible (%s); not relaunching app (%s)",
+                sid.value,
+                reason,
+            )
+            if ensure_campaign_lobby(ctx, exit_combat=nav_exit_combat):
+                return True
+            return current_ready()
+        log.warning("%s; launching game", reason)
         EmulatorConsole().run_app()
         sleep(launch_wait_s)
         deadline = time.time() + game_visible_timeout
@@ -142,10 +189,11 @@ def ensure_game_lobby(
                 return True
             sid = ctx.current_screen()
             if allow_combat and is_combat_active(sid):
-                log.info("Juego abrió en run activa (%s); reanudo", sid.value)
+                log.info("Game opened in active run (%s); resuming", sid.value)
                 return True
-            if sid != ScreenId.UNKNOWN:
-                break
+            if _game_is_open(ctx):
+                log.info("Game visible after launch (%s)", sid.value)
+                return True
             sleep(2.0)
         return False
 
@@ -154,15 +202,25 @@ def ensure_game_lobby(
     if current_ready():
         return True
 
+    if launch_game and _game_is_open(ctx):
+        if ensure_campaign_lobby(ctx, exit_combat=nav_exit_combat):
+            return True
+        if current_ready():
+            return True
+
     if launch_game:
         try:
             screen = ctx.device.screenshot()
             if is_lobby(screen):
                 return True
-            if ctx.current_screen() == ScreenId.UNKNOWN and launch_and_wait("Pantalla inicial unknown"):
+            if _game_is_open(ctx):
+                pass
+            elif ctx.current_screen() == ScreenId.UNKNOWN and launch_and_wait(
+                "Initial screen unknown"
+            ):
                 return True
         except RuntimeError:
-            if launch_and_wait("No pude capturar pantalla inicial"):
+            if launch_and_wait("Could not capture initial screen"):
                 return True
 
     if ensure_campaign_lobby(ctx, exit_combat=nav_exit_combat):
@@ -172,8 +230,15 @@ def ensure_game_lobby(
     if not launch_game:
         return False
 
+    if _game_is_open(ctx):
+        log.warning(
+            "Game open (%s) but lobby not confirmed; not relaunching MuMu",
+            ctx.current_screen().value,
+        )
+        return False
+
     for attempt in range(max(1, max_launch_attempts)):
-        if launch_and_wait(f"No se confirmó lobby (intento {attempt + 1}/{max_launch_attempts})"):
+        if launch_and_wait(f"Lobby not confirmed (attempt {attempt + 1}/{max_launch_attempts})"):
             return True
         if ensure_campaign_lobby(ctx, exit_combat=nav_exit_combat):
             return True
@@ -183,8 +248,8 @@ def ensure_game_lobby(
 
 
 def prepare_for_task(ctx: BotContext, task: str) -> None:
-    """Prepara el emulador antes de una tarea del panel/CLI."""
-    sid = log_screen(ctx, f"Tarea {task}")
+    """Prepare the emulator before a panel/CLI task."""
+    sid = log_screen(ctx, f"Task {task}")
 
     combat_tasks = {"farm", "farm_forever", "play"}
 
@@ -196,46 +261,46 @@ def prepare_for_task(ctx: BotContext, task: str) -> None:
 
         screen = ctx.device.screenshot()
         if needs_post_run_dismiss(screen):
-            log.info("Farm/play: post-run detectado -> cerrar recompensas")
+            log.info("Farm/play: post-run detected -> close rewards")
             if not dismiss_to_lobby(ctx):
-                raise NavigationError("No se pudo cerrar pantalla post-run antes del farm")
+                raise NavigationError("Could not close post-run screen before farm")
             return
         sid = ctx.current_screen()
         if is_combat_active(sid):
             screen = ctx.device.screenshot()
             if needs_post_run_dismiss(screen):
-                log.info("Farm/play: post-run sobre %s -> cerrar recompensas", sid.value)
+                log.info("Farm/play: post-run on %s -> close rewards", sid.value)
                 if not dismiss_to_lobby(ctx):
-                    raise NavigationError("No se pudo cerrar pantalla post-run antes del farm")
+                    raise NavigationError("Could not close post-run screen before farm")
                 return
-            log.info("Farm/play: ya en combate (%s); reanudo run activa", sid.value)
+            log.info("Farm/play: already in combat (%s); resuming active run", sid.value)
             return
         if not ensure_game_lobby(ctx, exit_combat=True, allow_combat=True):
-            raise NavigationError("No se pudo abrir el juego y llegar al lobby/run activa para iniciar farm/play")
+            raise NavigationError("Could not open game and reach lobby/active run to start farm/play")
         return
 
     if task == "skills_scan":
         if sid == ScreenId.SKILL_SELECT:
             return
         if is_combat_active(sid):
-            raise NavigationError("En combate; poné skill select o esperá al fin del run")
+            raise NavigationError("In combat; open skill select or wait for the run to end")
         if not ensure_game_lobby(ctx, exit_combat=True):
-            raise NavigationError("Abrí el juego en skill select o lobby de campaña")
-        raise NavigationError("No estás en skill select; entrá a un level-up primero")
+            raise NavigationError("Open the game on skill select or campaign lobby")
+        raise NavigationError("Not on skill select; enter a level-up first")
 
     if is_combat_active(sid):
         raise NavigationError(
-            f"En combate ({sid.value}); no inicio '{task}'. Usá STOP o esperá a que termine el run."
+            f"In combat ({sid.value}); not starting '{task}'. Use STOP or wait for the run to end."
         )
 
     if not ensure_game_lobby(ctx, exit_combat=True):
-        raise NavigationError(f"No se pudo abrir el juego y llegar al lobby para '{task}'")
+        raise NavigationError(f"Could not open game and reach lobby for '{task}'")
 
 
 def _exit_combat(ctx: BotContext) -> None:
     from . import vision
 
-    log.info("Saliendo de combate activo...")
+    log.info("Exiting active combat...")
     try:
         ctx.tap_point("battle", "pause", money_check=False, settle=0.8)
         ctx.tap_point("battle", "exit_battle", money_check=False, settle=0.6)
@@ -249,7 +314,7 @@ def _exit_combat(ctx: BotContext) -> None:
             pass
         ctx.tap_point("battle", "exit_confirm", money_check=False, settle=0.8)
     except ValueError as exc:
-        log.warning("No pude salir de combate: %s", exc)
+        log.warning("Could not exit combat: %s", exc)
 
 
 def _dismiss_run_end(ctx: BotContext) -> None:

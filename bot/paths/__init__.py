@@ -1,1 +1,1 @@
-"""Paths del bot: secuencias/máquinas de estado reutilizables."""
+"""Bot paths: reusable state-machine sequences."""

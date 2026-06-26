@@ -1,4 +1,4 @@
-"""Control del emulador (MuMu Player 12 por defecto, LDPlayer legacy)."""
+"""Emulator control (MuMu Player 12 default, LDPlayer legacy)."""
 from __future__ import annotations
 
 import json
@@ -28,7 +28,7 @@ def _parse_json(text: str) -> dict:
     try:
         data = json.loads(text)
     except json.JSONDecodeError:
-        log.debug("JSON invalido del emulador: %s", text[:200])
+        log.debug("Invalid emulator JSON: %s", text[:200])
         return {}
     return data if isinstance(data, dict) else {}
 

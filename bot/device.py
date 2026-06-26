@@ -1,8 +1,8 @@
-"""Capa de dispositivo: envoltorio de ADB para el emulador (MuMu / LDPlayer).
+"""Device layer: ADB wrapper for the emulator (MuMu / LDPlayer).
 
-Las capturas se devuelven como arrays BGR de OpenCV en espacio retrato 900x1600.
-`input tap`/`input swipe` usan el MISMO sistema de coordenadas que la captura
-(confirmado empiricamente), por eso no hay rotacion ni remapeo.
+Screenshots are returned as OpenCV BGR arrays in 900x1600 portrait space.
+`input tap`/`input swipe` use the SAME coordinate system as the capture
+(empirically confirmed), so there is no rotation or remapping.
 """
 from __future__ import annotations
 
@@ -64,7 +64,7 @@ class Device:
                 if img is None:
                     img = self._screenshot_pull()
         if img is None:
-            raise RuntimeError("No se pudo capturar la pantalla del emulador")
+            raise RuntimeError("Could not capture emulator screen")
         if save_as:
             SHOTS.mkdir(exist_ok=True)
             cv2.imwrite(str(SHOTS / save_as), img)

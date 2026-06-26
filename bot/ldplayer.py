@@ -1,4 +1,4 @@
-"""Compatibilidad: reexporta el controlador unificado del emulador."""
+"""Compatibility: re-exports the unified emulator controller."""
 from __future__ import annotations
 
 from .emulator import EmulatorConsole, LdConsole, wait_for_adb

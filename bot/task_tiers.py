@@ -1,4 +1,4 @@
-"""Agrupación de tareas del panel por nivel de confianza."""
+"""Panel task grouping by confidence tier."""
 from __future__ import annotations
 
 import json
@@ -12,26 +12,26 @@ MANIFEST_PATH = ROOT / "config" / "daily-claims.json"
 
 DEFAULT_TIERS: dict[str, dict[str, str]] = {
     "trusted": {
-        "label": "Confiables",
-        "hint": "Probados en MuMu — podés usarlos sin drama",
+        "label": "Trusted",
+        "hint": "Verified on MuMu — safe to use",
     },
     "candidate": {
-        "label": "Por validar",
-        "hint": "Implementados, pero todavía no los confirmamos a fondo",
+        "label": "Needs validation",
+        "hint": "Implemented but not fully confirmed yet",
     },
     "paused": {
-        "label": "En pausa",
-        "hint": "Evitar por ahora — rotos, incompletos o loop muy largo",
+        "label": "Paused",
+        "hint": "Avoid for now — broken, incomplete, or very long",
     },
 }
 
 DEFAULT_TIER_ORDER = ("trusted", "candidate", "paused")
 
 DEFAULT_PANEL_TASKS: dict[str, dict[str, Any]] = {
-    "farm": {"label": "Farm energía", "tier": "trusted", "job": "farm"},
-    "farm_forever": {"label": "Farm infinito", "tier": "trusted", "job": "farm_forever"},
-    "play": {"label": "Play N partidas", "tier": "candidate", "job": "play", "needs_games": True},
-    "daily_main": {"label": "Loop principal daily", "tier": "paused", "job": "daily_main"},
+    "farm": {"label": "Farm energy", "tier": "trusted", "job": "farm"},
+    "farm_forever": {"label": "Farm forever", "tier": "trusted", "job": "farm_forever"},
+    "play": {"label": "Play N games", "tier": "candidate", "job": "play", "needs_games": True},
+    "daily_main": {"label": "Main daily loop", "tier": "paused", "job": "daily_main"},
 }
 
 DEFAULT_CLAIM_TIERS: dict[str, str] = {

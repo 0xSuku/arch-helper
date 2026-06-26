@@ -1,1 +1,1 @@
-"""Panel web local para controlar el bot."""
+"""Local web panel to control the bot."""

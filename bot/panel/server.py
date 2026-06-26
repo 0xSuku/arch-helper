@@ -1,4 +1,4 @@
-"""Servidor HTTP del panel de control (stdlib only)."""
+"""Control panel HTTP server (stdlib only)."""
 from __future__ import annotations
 
 import json
@@ -13,6 +13,7 @@ from ..failsafes import STOP_FILE, clear_stop_file
 from ..emulator import EmulatorConsole
 from ..log import get_logger
 from ..paths.daily import EXTRA_CLAIMS, MAIN_LOOP_ORDER
+from .catalog import chain_catalog_payload, preset_steps_to_chain
 from .jobs import RUNNER, JobBusyError, dispatch
 
 log = get_logger("panel")
@@ -106,6 +107,56 @@ class PanelHandler(BaseHTTPRequestHandler):
 
             return self._json(200, grouped_panel_items())
 
+        if path == "/api/pipeline/catalog":
+            return self._json(200, chain_catalog_payload())
+
+        if path == "/api/guide":
+            from .guide import load_guide_sections
+
+            return self._json(200, load_guide_sections())
+
+        if path == "/api/pipeline/presets":
+            from ..presets import list_presets
+
+            presets = [
+                {
+                    "id": p.id,
+                    "name": p.name,
+                    "description": p.description,
+                    "recover_on_failure": p.recover_on_failure,
+                    "steps": p.steps,
+                    "chain": preset_steps_to_chain(p.steps),
+                }
+                for p in list_presets()
+            ]
+            return self._json(200, {"presets": presets})
+
+        if path == "/api/pipeline/state":
+            from ..actions import describe_step
+            from ..pipeline import load_state
+
+            state = load_state()
+            if state is None:
+                return self._json(200, {"pending": False})
+            return self._json(
+                200,
+                {
+                    "pending": True,
+                    "preset_name": state.preset_name,
+                    "current_index": state.current_index,
+                    "recover_on_failure": state.recover_on_failure,
+                    "steps": [
+                        {
+                            "index": i + 1,
+                            "status": s.status,
+                            "label": describe_step(s.step),
+                            "error": s.error,
+                        }
+                        for i, s in enumerate(state.steps)
+                    ],
+                },
+            )
+
         if path == "/api/daily-status":
             lines = DailyChecks(force=False).status_lines()
             return self._json(200, {"lines": lines})
@@ -167,7 +218,7 @@ class PanelHandler(BaseHTTPRequestHandler):
                 job = str(body.get("job", "")).strip()
                 params = body.get("params") or {}
                 if not job:
-                    return self._json(400, {"ok": False, "error": "Falta job"})
+                    return self._json(400, {"ok": False, "error": "Missing job"})
                 dispatch(job, params)
                 return self._json(200, {"ok": True, "job": job})
             except JobBusyError as exc:
@@ -175,9 +226,71 @@ class PanelHandler(BaseHTTPRequestHandler):
             except ValueError as exc:
                 return self._json(400, {"ok": False, "error": str(exc)})
 
+        if path == "/api/pipeline/run":
+            try:
+                body = self._read_json()
+                chain = list(body.get("chain") or [])
+                if body.get("force"):
+                    from .catalog import catalog_action
+
+                    for item in chain:
+                        action = catalog_action(str(item.get("catalog_id") or ""))
+                        if action is None:
+                            continue
+                        tpl = action.get("template") or {}
+                        if tpl.get("action") in ("claim", "daily_main"):
+                            params = dict(item.get("params") or {})
+                            params["force"] = True
+                            item["params"] = params
+                dispatch(
+                    "pipeline_resume" if body.get("resume") else "pipeline",
+                    {
+                        "chain": chain,
+                        "name": body.get("name") or "panel",
+                        "recover_on_failure": bool(body.get("recover_on_failure", True)),
+                        "resume": bool(body.get("resume")),
+                    },
+                )
+                return self._json(200, {"ok": True})
+            except JobBusyError as exc:
+                return self._json(409, {"ok": False, "error": str(exc)})
+            except (ValueError, RuntimeError) as exc:
+                return self._json(400, {"ok": False, "error": str(exc)})
+
+        if path == "/api/pipeline/clear-state":
+            from ..pipeline import clear_state
+
+            clear_state()
+            return self._json(200, {"ok": True})
+
+        if path == "/api/pipeline/save-preset":
+            try:
+                from ..presets import save_preset
+                from .catalog import chain_to_steps
+
+                body = self._read_json()
+                preset_id = str(body.get("id", "")).strip().lower()
+                if not preset_id:
+                    return self._json(400, {"ok": False, "error": "Missing preset id"})
+                chain = body.get("chain") or []
+                steps = chain_to_steps(chain)
+                if not steps:
+                    return self._json(400, {"ok": False, "error": "Empty chain"})
+                preset = save_preset(
+                    preset_id,
+                    name=str(body.get("name") or preset_id),
+                    description=str(body.get("description") or ""),
+                    steps=steps,
+                    recover_on_failure=bool(body.get("recover_on_failure", True)),
+                    overwrite=bool(body.get("overwrite")),
+                )
+                return self._json(200, {"ok": True, "id": preset.id})
+            except ValueError as exc:
+                return self._json(400, {"ok": False, "error": str(exc)})
+
         if path == "/api/stop":
             STOP_FILE.write_text("", encoding="utf-8")
-            log.info("Panel: STOP solicitado")
+            log.info("Panel: STOP requested")
             return self._json(200, {"ok": True})
 
         if path == "/api/clear-stop":
@@ -225,6 +338,32 @@ class PanelHandler(BaseHTTPRequestHandler):
             except (ValueError, TypeError) as exc:
                 return self._json(400, {"ok": False, "error": str(exc)})
 
+        if path == "/api/skills/merge":
+            try:
+                from ..skill_scores import merge_skill_image
+
+                body = self._read_json()
+                result = merge_skill_image(
+                    str(body.get("catalog_fp", "")),
+                    str(body.get("target_skill_id", "")),
+                )
+                return self._json(200, {"ok": True, **result})
+            except (ValueError, TypeError) as exc:
+                return self._json(400, {"ok": False, "error": str(exc)})
+
+        if path == "/api/skills/delete":
+            try:
+                from ..skill_scores import delete_skill_image
+
+                body = self._read_json()
+                result = delete_skill_image(
+                    skill_id=str(body.get("skill_id", "")),
+                    catalog_fp=body.get("catalog_fp") or None,
+                )
+                return self._json(200, {"ok": True, **result})
+            except (ValueError, TypeError) as exc:
+                return self._json(400, {"ok": False, "error": str(exc)})
+
         self.send_error(404)
 
 
@@ -241,11 +380,11 @@ def _tail_log(max_lines: int) -> list[str]:
 
 def run_panel(host: str = "127.0.0.1", port: int = 8765, *, open_browser: bool = True) -> None:
     if not STATIC_DIR.exists():
-        raise FileNotFoundError(f"Falta carpeta static del panel: {STATIC_DIR}")
+        raise FileNotFoundError(f"Missing panel static folder: {STATIC_DIR}")
 
     server = ThreadingHTTPServer((host, port), PanelHandler)
     url = f"http://{host}:{port}/"
-    log.info("Panel web en %s (Ctrl+C para cerrar)", url)
+    log.info("Web panel at %s (Ctrl+C to quit)", url)
     print(f"\n  Archero v2 Panel -> {url}\n")
 
     if open_browser:
@@ -257,7 +396,7 @@ def run_panel(host: str = "127.0.0.1", port: int = 8765, *, open_browser: bool =
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        log.info("Panel cerrado")
+        log.info("Panel closed")
     finally:
         server.server_close()
 
@@ -265,10 +404,10 @@ def run_panel(host: str = "127.0.0.1", port: int = 8765, *, open_browser: bool =
 def main() -> None:
     import argparse
 
-    parser = argparse.ArgumentParser(description="Panel web del bot Archero v2")
+    parser = argparse.ArgumentParser(description="Archero v2 bot web panel")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
-    parser.add_argument("--no-browser", action="store_true", help="No abrir el navegador automaticamente")
+    parser.add_argument("--no-browser", action="store_true", help="Do not open the browser automatically")
     args = parser.parse_args()
     run_panel(args.host, args.port, open_browser=not args.no_browser)
 

@@ -1,4 +1,4 @@
-"""Catálogo de íconos de skill (todas las cartas vistas, deduplicadas por hash)."""
+"""Skill icon catalog (all seen cards, deduplicated by hash)."""
 from __future__ import annotations
 
 import json
@@ -45,7 +45,7 @@ def register_card(
     confidence: float,
     context: str = "play",
 ) -> tuple[str, bool]:
-    """Registra una carta en el catálogo. Devuelve (catalog_id, is_new)."""
+    """Register a card in the catalog. Returns (catalog_id, is_new)."""
     CATALOG_DIR.mkdir(parents=True, exist_ok=True)
     fp = fingerprint(card)
     manifest = _load_manifest()
@@ -95,7 +95,7 @@ def register_card(
     entries[fp] = meta
     _save_manifest(manifest)
     if is_new:
-        log.info("Catálogo + skill nuevo: %s (%s conf=%.2f)", catalog_id, category, confidence)
+        log.info("Catalog + new skill: %s (%s conf=%.2f)", catalog_id, category, confidence)
     return catalog_id, is_new
 
 
@@ -153,6 +153,49 @@ def find_catalog_fp(skill_id: str) -> str | None:
     return None
 
 
+def merge_catalog_entry(
+    fp: str,
+    *,
+    skill_id: str,
+    category: str,
+) -> None:
+    manifest = _load_manifest()
+    entries: dict[str, Any] = manifest.setdefault("entries", {})
+    if fp not in entries:
+        raise ValueError(f"Catalog entry not found: {fp}")
+    meta = dict(entries[fp])
+    meta["skill_id"] = skill_id
+    meta["category"] = category
+    meta["source"] = "grouped"
+    meta["needs_label"] = False
+    entries[fp] = meta
+    _save_manifest(manifest)
+    log.info("Catalog grouped: %s -> %s", fp, skill_id)
+
+
+def delete_catalog_entry(fp: str) -> bool:
+    manifest = _load_manifest()
+    entries: dict[str, Any] = manifest.setdefault("entries", {})
+    if fp not in entries:
+        return False
+    del entries[fp]
+    _save_manifest(manifest)
+    path = CATALOG_DIR / f"{fp}.png"
+    if path.is_file():
+        path.unlink()
+        log.info("Catalog image deleted: %s", fp)
+    return True
+
+
+def list_catalog_fps_for_skill(skill_id: str) -> list[str]:
+    manifest = _load_manifest()
+    fps: list[str] = []
+    for fp, meta in manifest.get("entries", {}).items():
+        if str(meta.get("skill_id")) == skill_id:
+            fps.append(fp)
+    return sorted(fps)
+
+
 def update_catalog_entry(
     fp: str,
     *,
@@ -162,7 +205,7 @@ def update_catalog_entry(
     manifest = _load_manifest()
     entries: dict[str, Any] = manifest.setdefault("entries", {})
     if fp not in entries:
-        raise ValueError(f"Entrada de catálogo no encontrada: {fp}")
+        raise ValueError(f"Catalog entry not found: {fp}")
     meta = dict(entries[fp])
     meta["skill_id"] = skill_id
     meta["category"] = category
@@ -174,4 +217,4 @@ def update_catalog_entry(
         meta["needs_label"] = False
     entries[fp] = meta
     _save_manifest(manifest)
-    log.info("Catálogo actualizado: %s -> %s [%s]", fp, skill_id, category)
+    log.info("Catalog updated: %s -> %s [%s]", fp, skill_id, category)

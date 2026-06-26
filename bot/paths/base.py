@@ -1,4 +1,4 @@
-"""Contexto base compartido por los paths: device + coords + failsafes + helpers."""
+"""Shared base context for paths: device + coords + failsafes + helpers."""
 from __future__ import annotations
 
 import time
@@ -84,7 +84,7 @@ class BotContext:
         return False
 
     def wait_for_lobby(self, timeout: float = 45.0, interval: float = 0.8) -> bool:
-        """Espera regreso al lobby; tolera pantallas de carga/transición (UNKNOWN)."""
+        """Wait for return to lobby; tolerates loading/transition screens (UNKNOWN)."""
         deadline = time.time() + timeout
         while time.time() < deadline:
             self.kill.check()

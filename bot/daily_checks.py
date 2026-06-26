@@ -27,7 +27,7 @@ def has_red_badge(
     offset_y: int = -16,
     min_pixels: int = 55,
 ) -> bool:
-    """Detecta punto rojo de notificación cerca de un ícono (esquina sup-der)."""
+    """Detect red notification dot near an icon (top-right corner)."""
     bx = cx + offset_x
     by = cy + offset_y
     x0 = max(0, bx - radius)

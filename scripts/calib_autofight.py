@@ -1,6 +1,6 @@
-"""Auto-combate de CALIBRACION: elige skills (daño) y esquiva con swipes
-hasta detectar una pantalla no reconocida (probable victoria/derrota), que
-captura para poder recortar sus anchors. No es el runner final."""
+"""Calibration auto-combat: picks damage skills and dodges with swipes
+until an unrecognized screen appears (likely victory/defeat), then captures
+it so anchors can be cropped. Not the final runner."""
 from __future__ import annotations
 
 import sys

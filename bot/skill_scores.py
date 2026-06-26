@@ -1,4 +1,4 @@
-"""Gestión de puntajes y metadatos de skills (templates + catálogo)."""
+"""Skill scores and metadata (templates + catalog)."""
 from __future__ import annotations
 
 import re
@@ -11,9 +11,12 @@ from .configs import load_skills, save_skills
 from .log import get_logger
 from .skill_catalog import (
     CATALOG_DIR,
+    delete_catalog_entry,
     find_catalog_fp,
     list_catalog_entries_full,
+    list_catalog_fps_for_skill,
     list_pending_entries,
+    merge_catalog_entry,
     update_catalog_entry,
 )
 from .skills import SKILLS_DIR, SkillPicker
@@ -67,7 +70,7 @@ def group_labels(config: dict[str, Any] | None = None) -> dict[str, str]:
 def _normalize_name(name: str) -> str:
     clean = name.strip().replace(" ", "_")
     if not clean or not _NAME_RE.match(clean):
-        raise ValueError(f"Nombre inválido: {name!r} (use letras, números, _ o -)")
+        raise ValueError(f"Invalid name: {name!r} (use letters, numbers, _ or -)")
     return clean
 
 
@@ -86,8 +89,8 @@ def resolve_skill_id(query: str) -> str:
     if len(matches) == 1:
         return matches[0]
     if not matches:
-        raise ValueError(f"Skill no encontrada: {query!r}. Usá 'skills list' para ver IDs.")
-    raise ValueError(f"ID ambiguo {query!r}: {', '.join(matches)}")
+        raise ValueError(f"Skill not found: {query!r}. Use 'skills list' to see IDs.")
+    raise ValueError(f"Ambiguous ID {query!r}: {', '.join(matches)}")
 
 
 def get_scores(config: dict[str, Any] | None = None) -> dict[str, int]:
@@ -116,12 +119,12 @@ def set_score(skill_id: str, score: int, config: dict[str, Any] | None = None) -
 
 
 def set_group(skill_id: str, group: str, config: dict[str, Any] | None = None) -> dict[str, Any]:
-    # Siempre partir del archivo en disco: set_score puede haber guardado justo antes.
+    # Always read from disk: set_score may have just saved.
     cfg = load_skills()
     groups_map = dict(cfg.get("groups_map", {}))
     grp = group.strip()
     if grp and grp not in valid_groups(cfg):
-        raise ValueError(f"Grupo inválido: {grp!r}")
+        raise ValueError(f"Invalid group: {grp!r}")
     if grp:
         groups_map[skill_id] = grp
     else:
@@ -156,10 +159,10 @@ def _migrate_score(old_id: str, new_id: str, config: dict[str, Any]) -> None:
 
 
 def promote_catalog_template(fp: str, category: str, name: str) -> bool:
-    """Copia el ícono del catálogo a templates/skills/ para matching in-game."""
+    """Copy catalog icon to templates/skills/ for in-game matching."""
     src = CATALOG_DIR / f"{fp}.png"
     if not src.exists():
-        log.warning("Catálogo sin PNG para promover: %s", fp)
+        log.warning("Catalog has no PNG to promote: %s", fp)
         return False
     dst = SKILLS_DIR / category / f"{name}.png"
     if dst.exists():
@@ -167,7 +170,7 @@ def promote_catalog_template(fp: str, category: str, name: str) -> bool:
     dst.parent.mkdir(parents=True, exist_ok=True)
     img = cv2.imread(str(src))
     if img is None:
-        log.warning("No se pudo leer PNG del catálogo: %s", src)
+        log.warning("Could not read catalog PNG: %s", src)
         return False
     cv2.imwrite(str(dst), img)
     log.info("Template promovido: %s -> %s", fp, dst.relative_to(SKILLS_DIR.parent))
@@ -188,7 +191,7 @@ def _rename_template(old_id: str, new_id: str) -> None:
     if new_path.resolve() == old_path.resolve():
         return
     if new_path.exists():
-        raise ValueError(f"Ya existe template: {new_id}")
+        raise ValueError(f"Template already exists: {new_id}")
     old_path.rename(new_path)
 
 
@@ -200,12 +203,76 @@ def _assert_unique_skill_id(new_id: str, old_id: str, catalog_fp: str | None) ->
     category, name = new_id.split("/", 1)
     template_path = SKILLS_DIR / category / f"{name}.png"
     if template_path.exists() and old_id != new_id:
-        raise ValueError(f"Ya existe skill duplicada: {new_id}")
+        raise ValueError(f"Duplicate skill already exists: {new_id}")
     for fp, skill_id, _category, _source, _conf in list_catalog_entries_full():
         if fp == catalog_fp:
             continue
         if skill_id == new_id:
-            raise ValueError(f"Ya existe skill duplicada en catálogo: {new_id}")
+            raise ValueError(f"Duplicate skill already exists in catalog: {new_id}")
+
+
+def _catalog_images_map() -> dict[str, list[dict[str, str]]]:
+    grouped: dict[str, list[dict[str, str]]] = {}
+    for fp, skill_id, _category, source, _conf in list_catalog_entries_full():
+        grouped.setdefault(skill_id, []).append({
+            "fp": fp,
+            "image_url": f"/api/skills/catalog-image?fp={fp}",
+            "source": source,
+        })
+    return grouped
+
+
+def merge_skill_image(fp: str, target_skill_id: str) -> dict[str, Any]:
+    target = target_skill_id.strip()
+    if "/" not in target or target.startswith("catalog/"):
+        raise ValueError("Pick a labeled skill (category/name)")
+    category = target.split("/", 1)[0]
+    cats = valid_categories()
+    if category not in cats:
+        raise ValueError(f"Invalid category in target: {category!r}")
+    merge_catalog_entry(fp, skill_id=target, category=category)
+    stem = target.split("/", 1)[1]
+    promote_catalog_template(fp, category, stem)
+    return {"id": target, "fp": fp, "category": category}
+
+
+def delete_skill_image(*, skill_id: str, catalog_fp: str | None = None) -> dict[str, Any]:
+    sid = skill_id.strip()
+    if catalog_fp:
+        if not delete_catalog_entry(catalog_fp):
+            raise ValueError(f"Catalog entry not found: {catalog_fp}")
+        has_template = any(s == sid for s, _, _ in discover_skills())
+        has_catalog = bool(list_catalog_fps_for_skill(sid))
+        if not has_template and not has_catalog:
+            cfg = load_skills()
+            scores = dict(cfg.get("scores", {}))
+            if sid in scores:
+                scores.pop(sid)
+                cfg["scores"] = scores
+            groups_map = dict(cfg.get("groups_map", {}))
+            if sid in groups_map:
+                groups_map.pop(sid)
+                cfg["groups_map"] = groups_map
+            save_skills(cfg)
+        return {"deleted": "catalog", "id": sid, "fp": catalog_fp}
+
+    removed_template = False
+    for entry_id, _category, path in discover_skills():
+        if entry_id == sid:
+            path.unlink()
+            removed_template = True
+            break
+    if not removed_template:
+        raise ValueError(f"Skill template not found: {sid}")
+    cfg = load_skills()
+    scores = dict(cfg.get("scores", {}))
+    scores.pop(sid, None)
+    groups_map = dict(cfg.get("groups_map", {}))
+    groups_map.pop(sid, None)
+    cfg["scores"] = scores
+    cfg["groups_map"] = groups_map
+    save_skills(cfg)
+    return {"deleted": "template", "id": sid}
 
 
 def update_skill_meta(
@@ -221,12 +288,12 @@ def update_skill_meta(
     cats = valid_categories(cfg)
     cat = category.strip()
     if cat not in cats:
-        raise ValueError(f"Categoría inválida: {cat!r}. Válidas: {', '.join(cats)}")
+        raise ValueError(f"Invalid category: {cat!r}. Valid: {', '.join(cats)}")
     stem = _normalize_name(name)
     new_id = f"{cat}/{stem}"
     old_id = skill_id.strip()
     if _is_legacy_active(old_id):
-        raise ValueError("Entradas active/* fueron removidas; renombrá como skill normal")
+        raise ValueError("active/* entries were removed; rename as a normal skill")
 
     fp = catalog_fp or find_catalog_fp(old_id)
     _assert_unique_skill_id(new_id, old_id, fp)
@@ -255,6 +322,7 @@ def list_skill_rows(config: dict[str, Any] | None = None) -> list[dict[str, Any]
     cfg = config or load_skills()
     picker = SkillPicker(cfg)
     groups_map = get_groups_map(cfg)
+    catalog_images = _catalog_images_map()
     rows: list[dict[str, Any]] = []
     seen: set[str] = set()
     scored_ids = set(get_scores(cfg))
@@ -269,6 +337,9 @@ def list_skill_rows(config: dict[str, Any] | None = None) -> list[dict[str, Any]
         if _is_legacy_active(skill_id) or skill_id in seen:
             return
         name = skill_id.split("/", 1)[1] if "/" in skill_id else skill_id
+        images = catalog_images.get(skill_id, [])
+        if catalog_fp and not any(img["fp"] == catalog_fp for img in images):
+            images = [{"fp": catalog_fp, "image_url": f"/api/skills/catalog-image?fp={catalog_fp}", "source": source}, *images]
         rows.append({
             "id": skill_id,
             "name": name,
@@ -277,6 +348,7 @@ def list_skill_rows(config: dict[str, Any] | None = None) -> list[dict[str, Any]
             "score": picker.score_for(skill_id, category),
             "source": source,
             "catalog_fp": catalog_fp,
+            "catalog_images": images,
             "entry_type": entry_type,
         })
         seen.add(skill_id)
@@ -294,7 +366,7 @@ def list_skill_rows(config: dict[str, Any] | None = None) -> list[dict[str, Any]
         append_row(
             skill_id,
             category,
-            "manual (sin template)",
+            "manual (no template)",
             find_catalog_fp(skill_id),
             "manual",
         )
@@ -331,7 +403,7 @@ def list_pending_skill_rows(config: dict[str, Any] | None = None) -> list[dict[s
 
 def format_skill_table(rows: list[dict[str, Any]] | list[tuple[str, str, int, str]]) -> str:
     if not rows:
-        return "No hay skills en templates/skills/. Recortá íconos con calibrate --crop."
+        return "No skills in templates/skills/. Crop icons with calibrate --crop."
     if isinstance(rows[0], dict):
         tuples = [
             (r["id"], r["category"], r.get("group", ""), r["score"], r["source"])
@@ -339,7 +411,7 @@ def format_skill_table(rows: list[dict[str, Any]] | list[tuple[str, str, int, st
         ]  # type: ignore[index]
     else:
         tuples = [(t[0], t[1], "", t[2], t[3]) for t in rows]  # type: ignore[assignment]
-    lines = [f"{'SCORE':>5}  {'SKILL ID':<28} {'CAT':<12} {'GRUPO':<14} SRC", "-" * 78]
+    lines = [f"{'SCORE':>5}  {'SKILL ID':<28} {'CAT':<12} {'GROUP':<14} SRC", "-" * 78]
     for skill_id, category, group, score, source in tuples:
         lines.append(f"{score:>5}  {skill_id:<28} {category:<12} {group or '-':<14} {source}")
     return "\n".join(lines)

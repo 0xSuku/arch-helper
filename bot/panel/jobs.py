@@ -1,4 +1,4 @@
-"""Tareas ejecutables desde el panel (misma lógica que el CLI)."""
+"""Runnable tasks from the panel (same logic as the CLI)."""
 from __future__ import annotations
 
 import threading
@@ -29,9 +29,9 @@ def connect_device() -> Device:
     device = Device()
     if not reconnect_adb(device):
         raise JobConnectionError(
-            f"ADB no conectado a {device.serial}. Abri el emulador o ejecuta emulator reconnect."
+            f"ADB not connected to {device.serial}. Open the emulator or run emulator reconnect."
         )
-    log.info("Panel: conectado a %s", device.serial)
+    log.info("Panel: connected to %s", device.serial)
     return device
 
 
@@ -46,7 +46,7 @@ class JobRunner:
     def start(self, label: str, fn: Callable[[], None]) -> None:
         with self._lock:
             if self.running:
-                raise JobBusyError(f"Ya corre: {self.label}")
+                raise JobBusyError(f"Already running: {self.label}")
             clear_stop_file()
             self.running = True
             self.label = label
@@ -58,7 +58,7 @@ class JobRunner:
                 try:
                     fn()
                 except StopRequested as exc:
-                    log.warning("Panel detenido: %s", exc)
+                    log.warning("Panel stopped: %s", exc)
                 except JobConnectionError as exc:
                     self.last_error = str(exc)
                     log.error("%s", exc)
@@ -67,7 +67,7 @@ class JobRunner:
                     log.error("%s", exc)
                 except Exception as exc:  # noqa: BLE001
                     self.last_error = str(exc)
-                    log.exception("Panel job falló (%s): %s", label, exc)
+                    log.exception("Panel job failed (%s): %s", label, exc)
                 finally:
                     with self._lock:
                         self.running = False
@@ -108,7 +108,7 @@ def run_emulator_reconnect() -> None:
 
     device = Device()
     if not reconnect_adb(device):
-        raise JobConnectionError(f"No se pudo reconectar ADB a {device.serial}")
+        raise JobConnectionError(f"Could not reconnect ADB to {device.serial}")
 
 
 def run_emulator_reboot() -> None:
@@ -116,7 +116,7 @@ def run_emulator_reboot() -> None:
 
     device = Device()
     if not reboot_emulator_and_wait_lobby(device):
-        raise RuntimeError("Reinicio del emulador no completo (ADB o lobby)")
+        raise RuntimeError("Emulator reboot did not complete (ADB or lobby)")
 
 
 run_ldplayer_launch = run_emulator_launch
@@ -130,7 +130,7 @@ def run_calibrate_identify() -> None:
 
     device = connect_device()
     sid = screens.identify(device.screenshot())
-    log.info("Pantalla actual: %s", sid.value)
+    log.info("Current screen: %s", sid.value)
 
 
 def run_calibrate_shot() -> None:
@@ -139,7 +139,7 @@ def run_calibrate_shot() -> None:
     device = connect_device()
     name = time.strftime("panel_%Y%m%d_%H%M%S.png")
     device.screenshot(save_as=name)
-    log.info("Captura guardada: screenshots/%s", name)
+    log.info("Screenshot saved: screenshots/%s", name)
 
 
 def run_calibrate_read_floor() -> None:
@@ -152,7 +152,7 @@ def run_calibrate_read_floor() -> None:
     except (KeyError, ValueError):
         region = vision.DEFAULT_CAMPAIGN_FLOOR_BADGE
     floor = vision.read_campaign_floor_badge(device.screenshot(), region)
-    log.info("Piso leído: %s", floor if floor is not None else "(no legible)")
+    log.info("Floor read: %s", floor if floor is not None else "(unreadable)")
 
 
 def run_skills_scan() -> None:
@@ -168,7 +168,7 @@ def run_skills_scan() -> None:
     screen = device.screenshot()
     sid = screens.identify(screen)
     if sid != ScreenId.SKILL_SELECT:
-        log.warning("Pantalla actual: %s (esperaba skill_select)", sid.value)
+        log.warning("Current screen: %s (expected skill_select)", sid.value)
     picker = SkillPicker()
     try:
         fallback = Coords.load().regions("skill_select", "cards")
@@ -179,17 +179,17 @@ def run_skills_scan() -> None:
         regions = fallback
     evaluations = picker.evaluate(screen, regions, catalog=True)
     if not evaluations:
-        log.warning("Skills scan: no se detectaron cartas")
+        log.warning("Skills scan: no cards detected")
         return
-    log.info("Catalogadas %d cartas visibles (todas, no solo la elegida)", len(evaluations))
+    log.info("Cataloged %d visible cards (all, not just the chosen one)", len(evaluations))
     if picker.selection_mode == "score":
         ranked = sorted(evaluations, key=lambda e: (-e.score, -e.confidence))
     else:
         ranked = sorted(evaluations, key=lambda e: (picker._rank(e.category), -e.confidence))
     for i, ev in enumerate(ranked, 1):
-        mark = " <- elegiría" if i == 1 else ""
+        mark = " <- would pick" if i == 1 else ""
         log.info(
-            "Skills scan %d: carta %d %s score=%d conf=%.2f%s",
+            "Skills scan %d: card %d %s score=%d conf=%.2f%s",
             i,
             ev.index,
             ev.skill_id,
@@ -207,6 +207,36 @@ def run_skills_list() -> None:
         log.info("[skills] %s", line)
 
 
+def run_pipeline(
+    steps: list[dict[str, Any]],
+    *,
+    name: str = "panel",
+    recover_on_failure: bool = True,
+    resume: bool = False,
+) -> None:
+    from ..pipeline import (
+        PipelineRunner,
+        build_state_from_steps,
+        load_state,
+    )
+
+    device = connect_device()
+    ctx = BotContext(device)
+    runner = PipelineRunner(ctx)
+
+    if resume:
+        state = load_state()
+        if state is None:
+            raise RuntimeError("No pending run to resume")
+        runner.run(state, resume=True)
+        return
+
+    if not steps:
+        raise ValueError("Chain is empty; enable at least one step")
+    state = build_state_from_steps(steps, name=name, recover_on_failure=recover_on_failure)
+    runner.run(state, resume=False)
+
+
 def dispatch(job: str, params: dict[str, Any]) -> None:
     force = bool(params.get("force"))
     recover = bool(params.get("recover_emulator", params.get("recover_ldplayer")))
@@ -221,6 +251,30 @@ def dispatch(job: str, params: dict[str, Any]) -> None:
                 recover_emulator=recover,
                 task_id=job,
             ),
+        )
+        return
+
+    if job == "pipeline":
+        chain = params.get("chain") or []
+        from .catalog import chain_to_steps
+
+        steps = chain_to_steps(chain) if chain and "action" not in (chain[0] if chain else {}) else chain
+        label = str(params.get("name") or "pipeline")
+        RUNNER.start(
+            label,
+            lambda: run_pipeline(
+                steps,
+                name=label,
+                recover_on_failure=bool(params.get("recover_on_failure", True)),
+                resume=bool(params.get("resume")),
+            ),
+        )
+        return
+
+    if job == "pipeline_resume":
+        RUNNER.start(
+            "resume",
+            lambda: run_pipeline([], name="resume", resume=True),
         )
         return
 
@@ -251,7 +305,7 @@ def dispatch(job: str, params: dict[str, Any]) -> None:
 
     starter = starters.get(job)
     if starter is None:
-        raise ValueError(f"Tarea desconocida: {job}")
+        raise ValueError(f"Unknown job: {job}")
     starter()
 
 

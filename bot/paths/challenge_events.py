@@ -1,4 +1,4 @@
-"""Eventos de la pestaña Challenge (Events): entrada, combate y salida al lobby."""
+"""Challenge tab events (Events): entry, combat, and return to lobby."""
 from __future__ import annotations
 
 import time
@@ -68,7 +68,7 @@ class ChallengeEventRunner:
         self.ctx = ctx
 
     def run(self, spec: ChallengeEventSpec, *, from_popup: bool = False) -> int:
-        log.info("  %s (hasta %d run, %s)", spec.claim_id, spec.runs, spec.combat)
+        log.info("  %s (up to %d run, %s)", spec.claim_id, spec.runs, spec.combat)
         completed = 0
         self.ctx.hold_combat = True
         try:
@@ -78,7 +78,7 @@ class ChallengeEventRunner:
             for n in range(spec.runs):
                 log.info("    run %d/%d", n + 1, spec.runs)
                 if not self._start_run(spec):
-                    log.info("    Start no disponible; corto")
+                    log.info("    Start unavailable; stopping")
                     break
                 if self._run_combat(runner, spec):
                     completed += 1
@@ -100,7 +100,7 @@ class ChallengeEventRunner:
 
         if is_lobby(self.ctx.device.screenshot()):
             return
-        log.info("  Saliendo de %s -> lobby campaña", spec.claim_id)
+        log.info("  Leaving %s -> campaign lobby", spec.claim_id)
         for _ in range(12):
             self.ctx.kill.check()
             img = self.ctx.device.screenshot()
@@ -145,13 +145,13 @@ class ChallengeEventRunner:
 
     def _run_combat(self, runner: CombatRunner, spec: ChallengeEventSpec) -> bool:
         result, verified = runner.run_until_end_verified()
-        log.info("    resultado: %s (verificado=%s)", result, verified)
+        log.info("    result: %s (verified=%s)", result, verified)
         if not verified:
             return False
         if result == "timeout":
             return False
         if not runner.collect_event_end():
-            log.warning("    post-run no cerrado")
+            log.warning("    post-run not dismissed")
             return False
         return True
 
@@ -178,7 +178,7 @@ class ChallengeEventRunner:
             self.ctx.tap_point("events", key, money_check=False, settle=settle)
             return True
         except ValueError as exc:
-            log.warning("  coord events.%s sin calibrar: %s", key, exc)
+            log.warning("  events.%s coordinate uncalibrated: %s", key, exc)
             return False
 
     def _open_popup(self, spec: ChallengeEventSpec) -> bool:

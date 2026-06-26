@@ -1,4 +1,4 @@
-"""Definición de flujos de combate para tests con screenshots o emulador."""
+"""Combat flow definitions for tests with screenshots or emulator."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -20,7 +20,7 @@ class CombatFlowSpec:
 
 
 COMBAT_FLOWS: tuple[CombatFlowSpec, ...] = (
-    CombatFlowSpec("farm", "Farm nivel 50 (energía)", claim=None),
+    CombatFlowSpec("farm", "Farm level 50 (energy)", claim=None),
     CombatFlowSpec("shackled_jungle", "Shackled Jungle", claim="shackled_jungle"),
     CombatFlowSpec("abyssal_tide", "Abyssal Tide", claim="abyssal_tide"),
     CombatFlowSpec("arena", "Arena", claim="arena"),
@@ -54,7 +54,7 @@ class FlowRunResult:
 
 
 class FlowProbeDevice:
-    """Device que registra taps y simula transición lobby -> combate -> lobby."""
+    """Device that records taps and simulates lobby -> combat -> lobby transition."""
 
     def __init__(self, lobby_frame, battle_frame) -> None:
         from .mock_device import ScreenshotDevice
@@ -103,7 +103,7 @@ def run_mock_flow(
 
     spec = flow_by_id(flow_id)
     if spec is None:
-        return FlowRunResult(flow_id, False, False, 0, 0, error="flow desconocido")
+        return FlowRunResult(flow_id, False, False, 0, 0, error="unknown flow")
 
     lobby = lobby_factory()
     battle = battle_factory()
@@ -154,7 +154,7 @@ def run_mock_flow(
 def run_live_flow(flow_id: str, ctx: BotContext) -> FlowRunResult:
     spec = flow_by_id(flow_id)
     if spec is None:
-        return FlowRunResult(flow_id, False, False, 0, 0, error="flow desconocido")
+        return FlowRunResult(flow_id, False, False, 0, 0, error="unknown flow")
     before = ctx.current_screen()
     entered = before in {
         ScreenId.BATTLE,

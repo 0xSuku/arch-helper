@@ -1,4 +1,4 @@
-"""Cierre de pantallas post-run (recompensas, runas, popups de detalle)."""
+"""Dismiss post-run screens (rewards, runes, item detail popups)."""
 from __future__ import annotations
 
 import time
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 log = get_logger("run_end")
 
 POST_RUN_TAP = (450, 1552)
-# Debajo del grid, centro (evitar columna izq del loot que abre detalle de ítem).
+# Below the grid, center (avoid left loot column that opens item detail).
 FARM_POST_RUN_TAP = POST_RUN_TAP
 POST_RUN_FARM_FALLBACK = (320, 1555)
 POST_RUN_SCAN_Y = (1485, 1590)
@@ -61,7 +61,7 @@ def _loot_like_score(patch) -> float:
 
 
 def find_safe_post_run_tap(screen) -> tuple[int, int, str]:
-    """Busca zona oscura/uniforme bajo el grid (no sobre ítems/runas)."""
+    """Find dark/uniform area below the grid (not over items/runes)."""
     h, w = screen.shape[:2]
     y0, y1 = POST_RUN_SCAN_Y
     x0, x1 = POST_RUN_SCAN_X
@@ -75,7 +75,7 @@ def find_safe_post_run_tap(screen) -> tuple[int, int, str]:
             mean = float(patch.mean())
             std = float(patch.std())
             loot = _loot_like_score(patch)
-            # Preferir suelo vacío: oscuro, poco colorido, poco contraste de ítem.
+            # Prefer empty floor: dark, low saturation, low item contrast.
             score = (220.0 - mean) + std * 0.3 - loot * 1.2
             if score > best_score:
                 best_score = score
@@ -269,7 +269,7 @@ def is_post_run_overlay(screen) -> bool:
 
 
 def needs_post_run_dismiss(screen) -> bool:
-    """True solo para recompensas post-run reales (no combate activo)."""
+    """True only for real post-run rewards (not active combat)."""
     if is_lobby(screen):
         return False
     sid = identify(screen)
@@ -327,13 +327,13 @@ def _tap_dismiss(ctx: BotContext, x: int, y: int, src: str) -> None:
 
 
 def _close_item_detail_popup(ctx: BotContext) -> None:
-    log.info("post-run: popup ítem -> cerrar")
+    log.info("post-run: item popup -> close")
     ctx.back(settle=0.35)
     screen = ctx.device.screenshot()
     if is_lobby(screen) or not is_item_detail_popup(screen):
         return
     x, y = _item_detail_close_point(screen)
-    log.info("post-run: popup ítem persiste -> tap X (%d,%d)", x, y)
+    log.info("post-run: item popup persists -> tap X (%d,%d)", x, y)
     ctx.tap(x, y, money_check=False, settle=0.45)
 
 
@@ -392,18 +392,18 @@ def dismiss_to_lobby(ctx: BotContext, *, max_rounds: int = 4) -> bool:
     for round_i in range(max_rounds):
         screen = ctx.device.screenshot()
         if is_lobby(screen):
-            log.info("post-run: lobby OK (ronda %d)", round_i + 1)
+            log.info("post-run: lobby OK (round %d)", round_i + 1)
             return True
 
         sid = identify(screen)
         if not is_post_run_overlay(screen):
             if sid in _COMBAT_SCREENS:
                 log.warning(
-                    "post-run dismiss abortado: pantalla de combate (%s), falso positivo?",
+                    "post-run dismiss aborted: combat screen (%s), false positive?",
                     sid.value,
                 )
                 return False
-            log.info("post-run: overlay cerrado (%s), espero lobby...", sid.value)
+            log.info("post-run: overlay closed (%s), waiting for lobby...", sid.value)
             if ctx.wait_for_lobby(timeout=12.0):
                 return True
             return is_lobby(ctx.device.screenshot())
@@ -416,7 +416,7 @@ def dismiss_to_lobby(ctx: BotContext, *, max_rounds: int = 4) -> bool:
         ):
             tap = None
         log.info(
-            "post-run ronda %d/%d screen=%s challenge_end=%s",
+            "post-run round %d/%d screen=%s challenge_end=%s",
             round_i + 1,
             max_rounds,
             sid.value,
@@ -425,7 +425,7 @@ def dismiss_to_lobby(ctx: BotContext, *, max_rounds: int = 4) -> bool:
         dismiss_post_run_overlays(ctx, tap=tap)
 
         if _wait_for_lobby_or_retry(ctx):
-            log.info("post-run: lobby OK tras tap (ronda %d)", round_i + 1)
+            log.info("post-run: lobby OK after tap (round %d)", round_i + 1)
             return True
 
     screen = ctx.device.screenshot()
@@ -433,7 +433,7 @@ def dismiss_to_lobby(ctx: BotContext, *, max_rounds: int = 4) -> bool:
     if not ok:
         tx, ty, ts = taps[0]
         log.error(
-            "post-run FALLO tras %d rondas screen=%s last_tap=(%d,%d,%s)",
+            "post-run FAILED after %d rounds screen=%s last_tap=(%d,%d,%s)",
             max_rounds,
             identify(screen).value,
             tx,

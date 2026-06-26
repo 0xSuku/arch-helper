@@ -1,11 +1,11 @@
-"""Failsafes: guardas de seguridad transversales al bot.
+"""Failsafes: cross-cutting safety guards for the bot.
 
-- StopRequested / PathAborted / MoneyBlocked: excepciones de control.
-- KillSwitch: archivo centinela STOP + Ctrl+C.
-- MoneyGuard: nunca tocar botones de compra con dinero real.
-- StuckDetector: detecta pantallas congeladas y dispara recovery.
-- UnknownScreenWatchdog: aborta si no se reconoce la pantalla por mucho tiempo.
-- BattleTimeout: corta una partida que excede su duración máxima.
+- StopRequested / PathAborted / MoneyBlocked: control exceptions.
+- KillSwitch: STOP sentinel file + Ctrl+C.
+- MoneyGuard: never tap real-money purchase buttons.
+- StuckDetector: detects frozen screens and triggers recovery.
+- UnknownScreenWatchdog: aborts if the screen is unrecognized for too long.
+- BattleTimeout: ends a run that exceeds its maximum duration.
 """
 from __future__ import annotations
 
@@ -24,15 +24,15 @@ MONEY_TEMPLATE = "buttons/money_tag.png"
 
 
 class StopRequested(Exception):
-    """El usuario pidió detener el bot (archivo STOP o Ctrl+C)."""
+    """The user asked to stop the bot (STOP file or Ctrl+C)."""
 
 
 class PathAborted(Exception):
-    """Un path se abortó por una condición irrecuperable (stuck/unknown)."""
+    """A path aborted due to an unrecoverable condition (stuck/unknown)."""
 
 
 class MoneyBlocked(Exception):
-    """Se bloqueó un tap por detectarse un precio en dinero real."""
+    """A tap was blocked because a real-money price tag was detected."""
 
 
 class KillSwitch:
@@ -44,14 +44,14 @@ class KillSwitch:
 
     def check(self) -> None:
         if self._stop or STOP_FILE.exists():
-            raise StopRequested("Kill-switch activado (archivo STOP o Ctrl+C)")
+            raise StopRequested("Kill switch activated (STOP file or Ctrl+C)")
 
 
 class MoneyGuard:
-    """Aborta cualquier acción si detecta una etiqueta de precio ($) en pantalla.
+    """Abort any action if a price tag ($) is detected on screen.
 
-    Si el template buttons/money_tag.png no existe aún, el guard queda inactivo
-    (no puede dar falsos positivos), pero se avisa una vez.
+    If the buttons/money_tag.png template does not exist yet, the guard stays inactive
+    (cannot produce false positives), but a warning is logged once.
     """
 
     def __init__(self, threshold: float = 0.86, radius: int = 220) -> None:
@@ -65,7 +65,7 @@ class MoneyGuard:
         except FileNotFoundError:
             if not self._warned:
                 log.warning(
-                    "MoneyGuard inactivo: falta templates/%s. Calibralo para máxima seguridad.",
+                    "MoneyGuard inactive: missing templates/%s. Calibrate it for maximum safety.",
                     MONEY_TEMPLATE,
                 )
                 self._warned = True
@@ -74,15 +74,15 @@ class MoneyGuard:
     def assert_safe(self, screen: np.ndarray, point: tuple[int, int] | None = None) -> None:
         for m in self._money_matches(screen):
             if point is None:
-                raise MoneyBlocked("Etiqueta de precio detectada en pantalla")
+                raise MoneyBlocked("Price tag detected on screen")
             if abs(m.cx - point[0]) <= self.radius and abs(m.cy - point[1]) <= self.radius:
                 raise MoneyBlocked(
-                    f"Etiqueta de precio cerca de ({point[0]},{point[1]}); tap bloqueado"
+                    f"Price tag near ({point[0]},{point[1]}); tap blocked"
                 )
 
 
 class StuckDetector:
-    """Detecta que la pantalla no cambió durante `patience` segundos."""
+    """Detects that the screen has not changed for `patience` seconds."""
 
     def __init__(self, patience: float = 8.0, change_threshold: float = 0.01) -> None:
         self.patience = patience
@@ -95,7 +95,7 @@ class StuckDetector:
         self._since = time.time()
 
     def update(self, screen: np.ndarray) -> bool:
-        """Devuelve True si se considera 'stuck'."""
+        """Returns True if the screen is considered stuck."""
         if self._last is None:
             self._last = screen
             self._since = time.time()

@@ -171,7 +171,7 @@ class SkillCatalogTests(unittest.TestCase):
             ), patch.object(
                 skill_scores, "save_skills", lambda _cfg: None
             ):
-                with self.assertRaisesRegex(ValueError, "duplicada|Ya existe"):
+                with self.assertRaisesRegex(ValueError, "Duplicate"):
                     skill_scores.update_skill_meta(
                         skill_id="catalog/bbb",
                         name="bolt",
@@ -222,6 +222,75 @@ class SkillCatalogTests(unittest.TestCase):
             self.assertEqual(rows[0]["score"], 0)
             self.assertEqual(rows[0]["seen_count"], 4)
             self.assertEqual(rows[0]["source_context"], "farm")
+
+
+    def test_merge_catalog_into_existing_skill(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            catalog_dir = root / "catalog"
+            skills_dir = root / "skills"
+            manifest = root / "skills-catalog.json"
+            card = _card(21)
+
+            with patch.object(skill_catalog, "CATALOG_DIR", catalog_dir), patch.object(
+                skill_catalog, "MANIFEST_PATH", manifest
+            ), patch.object(skill_scores, "CATALOG_DIR", catalog_dir), patch.object(
+                skill_scores, "SKILLS_DIR", skills_dir
+            ), patch.object(skill_scores, "load_skills", return_value={
+                "categories": ["dano"],
+                "groups": [],
+                "scores": {"dano/bolt": 90},
+                "groups_map": {},
+            }), patch.object(skill_scores, "save_skills", lambda _cfg: None):
+                catalog_dir.mkdir(parents=True, exist_ok=True)
+                skill_catalog.register_card(
+                    card,
+                    skill_id="unknown",
+                    category="unknown",
+                    confidence=0.4,
+                )
+                data = json.loads(manifest.read_text(encoding="utf-8"))
+                fp = next(iter(data["entries"]))
+                result = skill_scores.merge_skill_image(fp, "dano/bolt")
+                pending = skill_catalog.list_pending_entries()
+                data = json.loads(manifest.read_text(encoding="utf-8"))
+
+            self.assertEqual(result["id"], "dano/bolt")
+            self.assertEqual(pending, [])
+            self.assertEqual(data["entries"][fp]["skill_id"], "dano/bolt")
+            self.assertEqual(data["entries"][fp]["source"], "grouped")
+            self.assertFalse(data["entries"][fp]["needs_label"])
+
+    def test_delete_catalog_image(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            catalog_dir = root / "catalog"
+            manifest = root / "skills-catalog.json"
+            card = _card(33)
+
+            with patch.object(skill_catalog, "CATALOG_DIR", catalog_dir), patch.object(
+                skill_catalog, "MANIFEST_PATH", manifest
+            ), patch.object(skill_scores, "CATALOG_DIR", catalog_dir), patch.object(
+                skill_scores, "SKILLS_DIR", root / "skills"
+            ), patch.object(skill_scores, "load_skills", return_value={
+                "categories": ["dano"],
+                "groups": [],
+                "scores": {},
+                "groups_map": {},
+            }), patch.object(skill_scores, "save_skills", lambda _cfg: None):
+                skill_catalog.register_card(
+                    card,
+                    skill_id="unknown",
+                    category="unknown",
+                    confidence=0.2,
+                )
+                data = json.loads(manifest.read_text(encoding="utf-8"))
+                fp = next(iter(data["entries"]))
+                skill_scores.delete_skill_image(skill_id=f"catalog/{fp}", catalog_fp=fp)
+                data = json.loads(manifest.read_text(encoding="utf-8"))
+
+            self.assertEqual(data.get("entries", {}), {})
+            self.assertEqual(list(catalog_dir.glob("*.png")), [])
 
 
 if __name__ == "__main__":

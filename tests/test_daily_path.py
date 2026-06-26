@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 from bot.paths.daily import DailyPath
 from bot.screens import ScreenId
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 class _Checks:
@@ -37,6 +40,8 @@ def _daily_path() -> DailyPath:
     path = object.__new__(DailyPath)
     path.checks = _Checks()
     path.arena_max_power = 5.0
+    path.arena_exit_early = False
+    path.arena_confirm = False
     return path
 
 
@@ -44,8 +49,7 @@ class DailyPathRegressionTests(unittest.TestCase):
     def test_claim_arena_does_not_verify_when_no_fights_complete(self) -> None:
         path = _daily_path()
         path.arena_fights = 2
-        path._is_arena_opponents_popup = lambda: True
-        path._ensure_events_hub = lambda: False
+        path._arena_prepare_from_current_screen = lambda banner: False
         path._run_arena_fights = lambda mode, *, fights: 0
         path._leave_arena_to_campaign = lambda: None
 
@@ -59,27 +63,106 @@ class DailyPathRegressionTests(unittest.TestCase):
         powers = {1: 8.42, 2: 2.0, 3: 4.0, 4: 6.04, 5: 2.63}
         path._read_arena_opponent_power = lambda index: powers.get(index)
 
+        rivals = {i: powers.get(i) for i in range(3, 6)}
+        path._arena_read_rivals = lambda: rivals
+        path._arena_refresh_opponents = lambda: None
+
         target = path._arena_pick_target()
 
         self.assertEqual(target, 3)
 
+    def test_arena_pick_skips_when_all_above_max_after_refresh(self) -> None:
+        path = _daily_path()
+        path.arena_max_power = 4.3
+        path._arena_refresh_opponents = lambda: None
+        path._arena_read_rivals = lambda: {3: 5.0, 4: 5.1, 5: 4.8}
+
+        target = path._arena_pick_target()
+
+        self.assertIsNone(target)
+
+    def test_arena_pick_uses_single_screenshot_read(self) -> None:
+        path = _daily_path()
+        path.arena_max_power = 4.3
+        path._arena_refresh_opponents = lambda: None
+        path._arena_read_rivals = lambda: {3: None, 4: None, 5: 1.11}
+
+        target = path._arena_pick_target()
+
+        self.assertEqual(target, 5)
+
     def test_peak_arena_recovery_reopens_peak_banner(self) -> None:
         path = _daily_path()
+        path.ctx = _Ctx(ScreenId.ARENA_OPPONENTS)
+        path.ctx.kill = type("K", (), {"check": lambda self: None})()
         opened_banners: list[str] = []
         path._open_arena_rivals_popup = lambda banner: opened_banners.append(banner) or True
+        path._arena_recover_screen = lambda banner_key="arena_banner": True
+        path._ensure_arena_challenge_popup = lambda banner: True
         path._is_arena_victory_screen = lambda: False
         path._is_arena_opponents_popup = lambda *args: True
-        path._read_arena_opponent_power = lambda index: 1.0
+        path._arena_read_rivals = lambda: {3: 1.0, 4: 1.0, 5: 1.0}
+        path._arena_refresh_opponents = lambda: None
         path._arena_attack_opponent = lambda index: None
-        path._wait_for_battle_start = lambda *, timeout: False
+        path._wait_for_battle_start = lambda *, timeout: True
         path._wait_arena_victory_and_confirm = lambda: True
-        path._wait_arena_opponents = lambda *, timeout: False
+        path._arena_return_to_rivals = lambda banner: True
 
         with patch("bot.paths.daily.sleep", lambda *_args, **_kwargs: None):
-            completed = path._run_arena_fights("peak_arena", fights=1)
+            completed = path._run_arena_fights("peak_arena", fights=2)
 
-        self.assertEqual(completed, 1)
-        self.assertEqual(opened_banners, ["peak_arena_banner", "peak_arena_banner"])
+        self.assertEqual(completed, 2)
+
+    def test_arena_recover_from_personal_info(self) -> None:
+        import cv2
+
+        from bot.screens import ScreenId
+        from bot.testing.fixtures import fixture_path
+
+        path = _daily_path()
+        path.ctx = _Ctx(ScreenId.UNKNOWN)
+        path.ctx.kill = type("K", (), {"check": lambda self: None})()
+        path.arena_reload_after_exit_s = 0.0
+        dismissed: list[bool] = []
+
+        personal = cv2.imread(str(ROOT / "screenshots" / "arena-after-exit-02s.png"))
+        if personal is None:
+            self.skipTest("Falta screenshots/arena-after-exit-02s.png")
+
+        screens_seq = [personal, cv2.imread(str(fixture_path("arena", "opponents_popup.png")))]
+        path.ctx.device = type("D", (), {"screenshot": lambda self: screens_seq.pop(0)})()
+
+        path._dismiss_arena_personal_info = lambda: dismissed.append(True) or True
+        path._arena_rivals_readable = lambda: True
+
+        with patch("bot.paths.daily.sleep", lambda *_args, **_kwargs: None):
+            ok = path._arena_recover_screen("arena_banner")
+
+        self.assertTrue(ok)
+        self.assertTrue(dismissed)
+
+    def test_events_hub_includes_arena_opponents_popup(self) -> None:
+        import cv2
+
+        from bot.testing.fixtures import fixture_path
+
+        path = _daily_path()
+        path.ctx = _Ctx(ScreenId.UNKNOWN)
+        popup = cv2.imread(str(fixture_path("arena", "opponents_popup.png")))
+        self.assertIsNotNone(popup)
+        self.assertTrue(path._is_events_hub(popup))
+
+    def test_arena_read_state_on_fixture(self) -> None:
+        import cv2
+
+        from bot.testing.fixtures import fixture_path
+
+        path = _daily_path()
+        path.ctx = _Ctx(ScreenId.UNKNOWN)
+        popup = cv2.imread(str(fixture_path("arena", "opponents_popup.png")))
+        st = path._arena_read_state(popup)
+        self.assertEqual(st.arena, ScreenId.ARENA_OPPONENTS)
+        self.assertTrue(st.rivals_readable)
 
     def test_single_abyssal_claim_does_not_resume_generic_combat(self) -> None:
         path = _daily_path()

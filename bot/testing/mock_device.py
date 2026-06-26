@@ -9,7 +9,7 @@ from ..device import Device
 
 @dataclass
 class ScreenshotDevice:
-    """Device fake que reproduce una secuencia de capturas."""
+    """Fake device that replays a sequence of screenshots."""
 
     frames: list[np.ndarray]
     index: int = 0
@@ -21,7 +21,7 @@ class ScreenshotDevice:
         _ = save_as
         _ = retry_reconnect
         if not self.frames:
-            raise RuntimeError("ScreenshotDevice sin frames")
+            raise RuntimeError("ScreenshotDevice has no frames")
         frame = self.frames[min(self.index, len(self.frames) - 1)]
         self.index += 1
         return frame.copy()

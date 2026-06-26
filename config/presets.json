@@ -1,0 +1,53 @@
+{
+  "presets": [
+    {
+      "id": "5-arena-farm",
+      "name": "5 arena + farm forever",
+      "description": "5 arena fights then infinite energy farm.",
+      "recover_on_failure": true,
+      "steps": [
+        {"action": "arena", "fights": 5},
+        {"action": "farm", "forever": true}
+      ]
+    },
+    {
+      "id": "arena-farm",
+      "name": "Daily arena + farm",
+      "description": "Default arena (2 fights) then farm until energy runs out.",
+      "recover_on_failure": true,
+      "steps": [
+        {"action": "arena"},
+        {"action": "farm"}
+      ]
+    },
+    {
+      "id": "shackled-2",
+      "name": "Shackled x2",
+      "description": "Two Shackled Jungle attempts.",
+      "recover_on_failure": true,
+      "steps": [
+        {"action": "shackled", "runs": 2}
+      ]
+    },
+    {
+      "id": "daily-main",
+      "name": "Main daily loop",
+      "description": "All main-loop daily claims without friends.",
+      "recover_on_failure": true,
+      "steps": [
+        {"action": "daily_main"}
+      ]
+    },
+    {
+      "id": "arena-shackled-farm",
+      "name": "Arena + Shackled + Farm",
+      "description": "Arena, 3 shackled runs, then farm forever.",
+      "recover_on_failure": true,
+      "steps": [
+        {"action": "arena", "fights": 2},
+        {"action": "shackled", "runs": 3},
+        {"action": "farm", "forever": true}
+      ]
+    }
+  ]
+}

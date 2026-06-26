@@ -34,6 +34,14 @@ class ArenaVisionTests(unittest.TestCase):
         rows = vision.find_arena_power_row_ys(self.screen)
         self.assertGreaterEqual(len(rows), 5)
 
+    def test_all_powers_on_fixture(self) -> None:
+        expected = [8.33, 10.62, 3.32, 5.14, 1.55]
+        for index, exp in enumerate(expected):
+            power = vision.read_arena_opponent_power(self.screen, index)
+            self.assertIsNotNone(power, f"rival #{index + 1}")
+            assert power is not None
+            self.assertAlmostEqual(power, exp, places=2)
+
     def test_weakest_opponent_readable(self) -> None:
         powers: list[float] = []
         for index in range(5):
@@ -41,6 +49,39 @@ class ArenaVisionTests(unittest.TestCase):
             if power is not None:
                 powers.append(power)
         self.assertTrue(any(p <= 3.0 for p in powers))
+
+    def test_victory_not_detected_on_opponents_popup(self) -> None:
+        from types import SimpleNamespace
+
+        from bot.paths.daily import DailyPath
+
+        path = object.__new__(DailyPath)
+        path.ctx = SimpleNamespace(device=None)
+        self.assertFalse(path._is_arena_victory_screen(self.screen))
+
+    def test_identify_arena_opponents_on_fixture(self) -> None:
+        from bot.screens import ScreenId, identify
+
+        self.assertEqual(identify(self.screen), ScreenId.ARENA_OPPONENTS)
+
+    def test_leaderboard_detected_on_peak_fixture(self) -> None:
+        from bot.screens import ScreenId, identify_arena
+
+        path = fixture_path("arena", "leaderboard_peak.png")
+        if not path.exists():
+            self.skipTest("Falta fixture arena/leaderboard_peak.png")
+        screen = cv2.imread(str(path))
+        self.assertTrue(vision.is_arena_leaderboard(screen))
+        self.assertEqual(identify_arena(screen), ScreenId.ARENA_LEADERBOARD)
+
+    def test_rival_challenge_tap_on_right_side(self) -> None:
+        tap = vision.find_arena_rival_challenge_tap(self.screen, 888)
+        self.assertIsNotNone(tap)
+        assert tap is not None
+        x, y = tap
+        self.assertEqual(x, 800)
+        self.assertGreater(y, 820)
+        self.assertLess(y, 960)
 
 
 if __name__ == "__main__":

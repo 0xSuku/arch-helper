@@ -1,53 +1,53 @@
-"""Extrae templates de dígitos Arena desde screenshots/arena-debug.png."""
+"""Extract Arena digit templates from a capture with known values."""
 from __future__ import annotations
+
+import argparse
+from pathlib import Path
 
 import cv2
 
-from bot.vision import crop
+from bot.vision import _arena_power_bw, crop
 
-ROOT = __import__("pathlib").Path(__file__).resolve().parents[1]
-IMG = ROOT / "screenshots" / "arena-debug.png"
+ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_IMG = ROOT / "screenshots" / "arena-ocr-probe.png"
 OUT = ROOT / "templates" / "arena" / "digits"
 
-# (row_y, expected text)
-SAMPLES = [
-    (572, "8.42M"),
-    (688, "6.16M"),
-    (880, "5.33M"),
-    (972, "6.04M"),
-    (1080, "2.63M"),
+PATCH = (100, -14, 140, 32)
+
+# (row_y, text, digit spans x0-x1)
+SAMPLES: list[tuple[int, str, list[tuple[int, int]]]] = [
+    (488, "8.33", [(67, 81), (93, 105), (109, 121)]),
+    (688, "10.62", [(60, 70), (75, 89), (100, 114), (116, 122)]),
+    (888, "3.32", [(68, 80), (93, 105), (108, 122)]),
+    (1088, "5.14", [(68, 80), (93, 103), (108, 122)]),
+    (1308, "1.55", [(73, 78), (93, 105), (109, 121)]),
 ]
 
 
 def main() -> None:
-    img = cv2.imread(str(IMG))
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--image", type=Path, default=DEFAULT_IMG)
+    args = parser.parse_args()
+
+    img = cv2.imread(str(args.image))
     if img is None:
-        raise SystemExit(f"No image: {IMG}")
+        raise SystemExit(f"No image: {args.image}")
     OUT.mkdir(parents=True, exist_ok=True)
-    for row_y, text in SAMPLES:
-        patch = crop(img, (175, row_y - 18, 95, 36))
-        gray = cv2.cvtColor(patch, cv2.COLOR_BGR2GRAY)
-        _, bw = cv2.threshold(gray, 120, 255, cv2.THRESH_BINARY_INV)
-        col = (bw > 0).sum(axis=0)
-        ink = [i for i, v in enumerate(col) if v > bw.shape[0] * 0.12]
-        clusters: list[list[int]] = [[ink[0]]]
-        for x in ink[1:]:
-            if x - clusters[-1][-1] <= 4:
-                clusters[-1].append(x)
-            else:
-                clusters.append([x])
-        spans = [(c[0], c[-1] + 1) for c in clusters]
-        chars = list(text.replace("M", "M"))
-        if len(chars) != len(spans):
-            print(f"row {row_y}: cluster count {len(spans)} != {text}")
-            continue
-        for ch, (x0, x1) in zip(chars, spans):
-            sub = bw[:, x0:x1]
-            key = "dot" if ch == "." else ch
-            path = OUT / f"{key}.png"
-            if not path.exists():
-                cv2.imwrite(str(path), sub)
-                print(f"wrote {path.name} from {text}")
+    px, py_off, pw, ph = PATCH
+
+    for row_y, text, spans in SAMPLES:
+        bw = _arena_power_bw(crop(img, (px, row_y + py_off, pw, ph)))
+        digits = [c for c in text if c.isdigit()]
+        for (x0, x1), ch in zip(spans, digits):
+            glyph = bw[:, x0:x1]
+            cv2.imwrite(str(OUT / f"{ch}.png"), glyph)
+            cv2.imwrite(str(OUT / f"{ch}_{row_y}.png"), glyph)
+            print(f"wrote {ch} from row {row_y} ({text})")
+
+    ref_bw = _arena_power_bw(crop(img, (px, SAMPLES[-1][0] + py_off, pw, ph)))
+    cv2.imwrite(str(OUT / "dot.png"), ref_bw[:, 84:90])
+    cv2.imwrite(str(OUT / "M.png"), ref_bw[:, 125:130])
+    print("wrote dot.png M.png")
 
 
 if __name__ == "__main__":

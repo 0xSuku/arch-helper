@@ -1,4 +1,4 @@
-"""Detección de popups de combate (pacto diablo / activos) que no matchean anchors."""
+"""Combat popup detection (devil deal / assets) that do not match anchors."""
 from __future__ import annotations
 
 import numpy as np

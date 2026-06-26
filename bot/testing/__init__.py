@@ -1,1 +1,1 @@
-"""Utilidades de testing con screenshots del juego."""
+"""Game screenshot testing utilities."""

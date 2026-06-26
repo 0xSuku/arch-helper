@@ -1,6 +1,8 @@
 node_modules/
+.venv/
 dist/
 .env
+data/
 screenshots/
 logs/
 *.log

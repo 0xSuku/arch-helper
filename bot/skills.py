@@ -1,10 +1,10 @@
-"""Selección de skills sin IA por template matching.
+"""Skill selection without AI via template matching.
 
-Cada template en templates/skills/<categoria>/<nombre>.png tiene un ID
-`categoria/nombre` y un puntaje en config/skills.json -> scores.
-In-game se elige la carta con mayor puntaje (desempate: confianza del match).
+Each template in templates/skills/<category>/<name>.png has an ID
+`category/name` and a score in config/skills.json -> scores.
+In-game, the card with the highest score is chosen (tie-break: match confidence).
 
-Las cartas sin match confiable se guardan en templates/unknown_skills/.
+Cards without a reliable match are saved in templates/unknown_skills/.
 """
 from __future__ import annotations
 
@@ -108,7 +108,7 @@ class SkillPicker:
             UNKNOWN_DIR.mkdir(parents=True, exist_ok=True)
             stamp = time.strftime("%Y%m%d-%H%M%S")
             cv2.imwrite(str(UNKNOWN_DIR / f"{stamp}_card{index}.png"), card)
-            log.info("Skill no reconocida guardada para etiquetar (carta %d)", index)
+            log.info("Unrecognized skill saved for labeling (card %d)", index)
         except Exception:  # noqa: BLE001
             pass
 
@@ -166,21 +166,21 @@ class SkillPicker:
     ) -> CardEval:
         regions = self.detect_cards(screen)
         if len(regions) == 1:
-            log.info("Detección dinámica halló 1 carta; reintento con banda amplia")
+            log.info("Dynamic detection found 1 card; retrying with wide band")
             regions = vision.find_card_icons(screen, band=(520, 920))
         if len(regions) < 2 and fallback_regions:
             use = fallback_regions if len(regions) == 0 else regions
             if len(regions) == 0:
-                log.info("Detección dinámica halló %d cartas; uso regiones calibradas", len(regions))
+                log.info("Dynamic detection found %d cards; using calibrated regions", len(regions))
                 regions = use[:3]
             else:
-                log.info("Detección dinámica halló %d carta(s)", len(regions))
+                log.info("Dynamic detection found %d card(s)", len(regions))
         if not regions:
             raise ValueError("No se detectaron cartas de skill")
         evaluations = self.evaluate(screen, regions, catalog=catalog, context=context)
         non_avoid = [e for e in evaluations if e.category not in self.avoid]
         if not non_avoid:
-            log.warning("Todas las cartas son de categoría a evitar; se elige la menos mala")
+            log.warning("All cards are avoided categories; picking least bad option")
         pool = non_avoid or evaluations
 
         if self.selection_mode == "category":

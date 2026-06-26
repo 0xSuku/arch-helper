@@ -1,18 +1,18 @@
 # v0.2.0
 
-## Panel de escritorio (Windows)
+## Desktop panel (Windows)
 
-- ZIP listo para descomprimir: `Instalar.cmd` + `Iniciar-Panel.cmd`
-- Guía en español para no técnicos: `release/LEEME-INSTALACION.md`
-- El panel abre el navegador automáticamente
+- Ready-to-unzip release: `Install.cmd` + `Start-Panel.cmd`
+- Non-technical guide: `release/INSTALLATION.md`
+- Panel opens the browser automatically
 
 ## Bot
 
-- **Arena**: elige rival #3–5 más arriba bajo `--arena-max-power`, Challenge por fila, sale al lobby tras N peleas
-- **Peak Arena**, **Rumble Ladder**, **Seal Battle**, **Monster Invasion**, **Magic Plant Defense** (modo survival con movimiento en círculos)
+- **Arena**: picks rival #3–5 highest below `--arena-max-power`, Challenge per row, returns to lobby after N fights
+- **Peak Arena**, **Rumble Ladder**, **Seal Battle**, **Monster Invasion**, **Magic Plant Defense** (survival mode with circle movement)
 - **Rune Ruins** picks (`--rune-ruins-keys`)
-- Tests con screenshots (`python -m bot.cli test flows`)
+- Screenshot tests (`python -m bot.cli test flows`)
 
-## Requisitos
+## Requirements
 
-- Windows 10/11, Python 3.12+, MuMu 12 (900×1600 vertical), Archero 2 + Play Services
+- Windows 10/11, Python 3.12+, MuMu 12 (900×1600 portrait), Archero 2 + Play Services
